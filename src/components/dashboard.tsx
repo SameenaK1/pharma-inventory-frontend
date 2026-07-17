@@ -1,5 +1,4 @@
- import { useState } from 'react';
-
+import { useState } from 'react';
 import { 
   AlertTriangle, 
   Calendar, 
@@ -7,8 +6,19 @@ import {
   Activity, 
   ArrowUpRight
 } from 'lucide-react';
- 
-
+import { 
+  Table, 
+  Badge, 
+  Text, 
+  Grid, 
+  Group, 
+  Paper, 
+  Container, 
+  Title, 
+  Anchor,
+  Stack
+} from '@mantine/core';
+  
 const initialInventory = [
   { id: 'M001', name: 'Amoxicillin 500mg', batch: 'B-AMX92', stock: 14, price: 450, expiry: '2026-09-15', status: 'Low Stock' },
   { id: 'M002', name: 'Paracetamol 650mg', batch: 'B-PCM04', stock: 450, price: 20, expiry: '2028-04-20', status: 'Good' },
@@ -24,7 +34,7 @@ const salesData = [
   { id: 'TX103', item: 'Metformin 1000mg', qty: 3, total: 540, time: '2 hours ago' },
 ];
 
-export default function dashboard() {
+export default function Dashboard() {
   const [inventory] = useState(initialInventory);
   const [sales] = useState(salesData);
 
@@ -43,215 +53,256 @@ export default function dashboard() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 && diffDays <= 60;
   });
+
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'Good': return 'green';
+      case 'Low Stock': return 'orange';
+      case 'Out of Stock': return 'red';
+      default: return 'gray';
+    }
+  };
+
   return (
-  <div style={{ fontFamily: '"Inter", system-ui, sans-serif', backgroundColor: '#f1f5f9', minHeight: '100vh', padding: '32px', color: '#334155' }}>
+    <Container size="xl" px="lg">
+      {/* 4-COLUMN TOP CALCULATION METRICS */}
+      <Grid gutter="md" mb="32px">
+        <Grid.Col span={{ base: 12, md: 3 }}>
+          <Paper p="md" withBorder shadow="xs">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="xs" fw={600} c="gray.6" tt="uppercase" lh="xs">
+                  Today's Sales Revenue
+                </Text>
+                <Title order={3} fw={700} c="gray.9" mt="xs">
+                  ₹{totalSalesRevenue.toLocaleString('en-IN')}
+                </Title>
+              </div>
+              <Paper bg="green.0" c="green.6" p="md" radius="md">
+                <DollarSign size={24} />
+              </Paper>
+            </Group>
+          </Paper>
+        </Grid.Col>
         
-      
-        {/* 4-COLUMN TOP CALCULATION METRICS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-          
-          {/* Total Sales Metric */}
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Sales Revenue</span>
-              <h3 style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '700', color: '#0f172a' }}>₹{totalSalesRevenue.toLocaleString('en-IN')}</h3>
-            </div>
-            <div style={{ backgroundColor: '#f0fdf4', color: '#16a34a', padding: '12px', borderRadius: '12px' }}>
-              <DollarSign size={24} />
-            </div>
-          </div>
-  
-          {/* Out of Stock Metric */}
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Out of Stock SKUs</span>
-              <h3 style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '700', color: outOfStockItems.length > 0 ? '#dc2626' : '#0f172a' }}>{outOfStockItems.length}</h3>
-            </div>
-            <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '12px', borderRadius: '12px' }}>
-              <AlertTriangle size={24} />
-            </div>
-          </div>
-  
-          {/* Expiring Soon Metric */}
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expiring Soon (&lt;60d)</span>
-              <h3 style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '700', color: expiringMedicines.length > 0 ? '#d97706' : '#0f172a' }}>{expiringMedicines.length}</h3>
-            </div>
-            <div style={{ backgroundColor: '#fff7ed', color: '#d97706', padding: '12px', borderRadius: '12px' }}>
-              <Calendar size={24} />
-            </div>
-          </div>
-  
-          {/* Live Active Units Metric */}
-          <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Stock Volume</span>
-              <h3 style={{ margin: '8px 0 0 0', fontSize: '28px', fontWeight: '700', color: '#0f172a' }}>{totalItemsInStock}</h3>
-            </div>
-            <div style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '12px', borderRadius: '12px' }}>
-              <Activity size={24} />
-            </div>
-          </div>
-  
-        </div>
-  
-        {/* CENTRAL APP LAYOUT ROW SPLIT */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr', gap: '32px', alignItems: 'start' }}>
-          
-          {/* LEFT COLUMN: CRITICAL DATA TABLES */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            
+        <Grid.Col span={{ base: 12, md: 3 }}>
+          <Paper p="md" withBorder shadow="xs">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="xs" fw={600} c="gray.6" tt="uppercase" lh="xs">
+                  Out of Stock SKUs
+                </Text>
+                <Title order={3} fw={700} c={outOfStockItems.length > 0 ? 'red' : 'gray.9'} mt="xs">
+                  {outOfStockItems.length}
+                </Title>
+              </div>
+              <Paper bg="red.0" c="red.6" p="md" radius="md">
+                <AlertTriangle size={24} />
+              </Paper>
+            </Group>
+          </Paper>
+        </Grid.Col>
+        
+        <Grid.Col span={{ base: 12, md: 3 }}>
+          <Paper p="md" withBorder shadow="xs">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="xs" fw={600} c="gray.6" tt="uppercase" lh="xs">
+                  Expiring Soon (&lt;60d)
+                </Text>
+                <Title order={3} fw={700} c={expiringMedicines.length > 0 ? 'orange' : 'gray.9'} mt="xs">
+                  {expiringMedicines.length}
+                </Title>
+              </div>
+              <Paper bg="orange.0" c="orange.6" p="md" radius="md">
+                <Calendar size={24} />
+              </Paper>
+            </Group>
+          </Paper>
+        </Grid.Col>
+        
+        <Grid.Col span={{ base: 12, md: 3 }}>
+          <Paper p="md" withBorder shadow="xs">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="xs" fw={600} c="gray.6" tt="uppercase" lh="xs">
+                  Total Stock Volume
+                </Text>
+                <Title order={3} fw={700} c="gray.9" mt="xs">
+                  {totalItemsInStock}
+                </Title>
+              </div>
+              <Paper bg="blue.0" c="blue.6" p="md" radius="md">
+                <Activity size={24} />
+              </Paper>
+            </Group>
+          </Paper>
+        </Grid.Col>
+      </MantineGrid>
+
+      {/* CENTRAL APP LAYOUT ROW SPLIT */}
+      <Grid gutter="lg">
+        {/* LEFT COLUMN: CRITICAL DATA TABLES */}
+        <Grid.Col span={{ base: 12, lg: 8 }}>
+          <Stack gap="lg">
             {/* Main Stock Inventory Status */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Global Stock Metrics</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #f1f5f9', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '12px' }}>
-                      <th style={{ paddingBottom: '12px' }}>Medicine Label</th>
-                      <th style={{ paddingBottom: '12px' }}>Batch No.</th>
-                      <th style={{ paddingBottom: '12px' }}>Available Vol.</th>
-                      <th style={{ paddingBottom: '12px' }}>Exp. Window</th>
-                      <th style={{ paddingBottom: '12px' }}>Status Guard</th>
+            <Paper p="md" withBorder shadow="xs">
+              <Title order={3} fw={700} c="gray.9" mb="md">
+                Global Stock Metrics
+              </Title>
+              <Table striped>
+                <thead>
+                  <tr>
+                    <th>Medicine Label</th>
+                    <th>Batch No.</th>
+                    <th>Available Vol.</th>
+                    <th>Exp. Window</th>
+                    <th>Status Guard</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventory.map((item) => (
+                    <tr key={item.id}>
+                      <td fw={600} c="gray.9">{item.name}</td>
+                      <td ta="left" fontFamily="monospace" c="gray.6">{item.batch}</td>
+                      <td>{item.stock} boxes</td>
+                      <td c="gray.6">{item.expiry}</td>
+                      <td>
+                        <Badge 
+                          color={getStatusColor(item.status) as any}
+                          variant="light"
+                          size="sm"
+                        >
+                          {item.status}
+                        </Badge>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody style={{ color: '#334155' }}>
-                    {inventory.map((item) => (
-                      <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '16px 0', fontWeight: '600', color: '#0f172a' }}>{item.name}</td>
-                        <td style={{ padding: '16px 0', fontFamily: 'monospace', color: '#64748b' }}>{item.batch}</td>
-                        <td style={{ padding: '16px 0', fontWeight: '500' }}>{item.stock} boxes</td>
-                        <td style={{ padding: '16px 0', color: '#64748b' }}>{item.expiry}</td>
-                        <td style={{ padding: '16px 0' }}>
-                          <span style={{
-                            backgroundColor: item.status === 'Good' ? '#f0fdf4' : item.status === 'Low Stock' ? '#fff7ed' : '#fef2f2',
-                            color: item.status === 'Good' ? '#16a34a' : item.status === 'Low Stock' ? '#ea580c' : '#dc2626',
-                            padding: '6px 12px', borderRadius: '30px', fontSize: '12px', fontWeight: '700'
-                          }}>
-                            {item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-  
+                  ))}
+                </tbody>
+              </Table>
+            </Paper>
+
             {/* Special Focus: Critical Warnings Box */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              
+            <Grid gutter="md">
               {/* Out of Stock Warning Container */}
-              <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#dc2626', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertTriangle size={16} /> Immediate Out-of-Stock Risk
-                </h4>
-                {outOfStockItems.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>All lines clean. Zero stock depletion.</p>
-                ) : (
-                  <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.8' }}>
-                    {outOfStockItems.concat(lowStockItems).map((item) => (
-                      <li key={item.id}>
-                        <strong>{item.name}</strong> ({item.stock} left)
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-  
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Paper p="md" withBorder>
+                  <Group align="center" gap="xs" mb="md">
+                    <AlertTriangle size={16} c="red.6" />
+                    <Title order={4} fw={700} c="red.6" size="sm">
+                      Immediate Out-of-Stock Risk
+                    </Title>
+                  </Group>
+                  {outOfStockItems.length === 0 ? (
+                    <Text size="sm" c="gray.6">
+                      All lines clean. Zero stock depletion.
+                    </Text>
+                  ) : (
+                    <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                      {outOfStockItems.concat(lowStockItems).map((item) => (
+                        <li key={item.id} style={{ marginBottom: '4px' }}>
+                          <strong>{item.name}</strong> ({item.stock} left)
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Paper>
+              </Grid.Col>
+
               {/* Impending Expiry Warnings Container */}
-              <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#d97706', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Calendar size={16} /> Impending Expiry (&lt; 60 Days)
-                </h4>
-                {expiringMedicines.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>Zero batches approaching immediate discard window.</p>
-                ) : (
-                  <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.8' }}>
-                    {expiringMedicines.map((item) => (
-                      <li key={item.id}>
-                        {item.name} <span style={{ color: '#ef4444', fontWeight: '600' }}>(Exp: {item.expiry})</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-  
-            </div>
-  
-          </div>
-  
-          {/* RIGHT COLUMN: AI CONSOLE & LIVE BILLING FLOW */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px' }}>
-    {/* Block Header (Matches Live Store Logs Header) */}
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>Shelf Life Watchlist</h3>
-      <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-        View Schedule <ArrowUpRight size={14} />
-      </span>
-    </div>
-  
-    {/* Rows Container */}
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      
-      {/* Log Entry 1 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>Cetirizine 10mg</h4>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>Batch: B-CET88 • 95 boxes at risk</span>
-        </div>
-        <span style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', backgroundColor: '#fef2f2', padding: '4px 8px', borderRadius: '6px' }}>Aug 10</span>
-      </div>
-  
-      {/* Log Entry 2 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>Ibuprofen 400mg</h4>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>Batch: B-IBU11 • 0 boxes at risk</span>
-        </div>
-        <span style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', backgroundColor: '#fff7ed', padding: '4px 8px', borderRadius: '6px' }}>Aug 30</span>
-      </div>
-  
-      {/* Log Entry 3 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>Atorvastatin 20mg</h4>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>Batch: B-ATO08 • 120 boxes at risk</span>
-        </div>
-        <span style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', backgroundColor: '#fff7ed', padding: '4px 8px', borderRadius: '6px' }}>Sep 01</span>
-      </div>
-  
-     
-  
-    </div>
-  </div>
-            
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Paper p="md" withBorder>
+                  <Group align="center" gap="xs" mb="md">
+                    <Calendar size={16} c="orange.6" />
+                    <Title order={4} fw={700} c="orange.6" size="sm">
+                      Impending Expiry (&lt; 60 Days)
+                    </Title>
+                  </Group>
+                  {expiringMedicines.length === 0 ? (
+                    <Text size="sm" c="gray.6">
+                      Zero batches approaching immediate discard window.
+                    </Text>
+                  ) : (
+                    <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                      {expiringMedicines.map((item) => (
+                        <li key={item.id} style={{ marginBottom: '4px' }}>
+                          {item.name} <span style={{ color: 'red', fontWeight: 600 }}>
+                            (Exp: {item.expiry})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Paper>
+              </Grid.Col>
+            </Grid>
+          </Stack>
+        </Grid.Col>
+
+        {/* RIGHT COLUMN: AI CONSOLE & LIVE BILLING FLOW */}
+        <Grid.Col span={{ base: 12, lg: 4 }}>
+          <Stack gap="lg">
+            {/* Shelf Life Watchlist */}
+            <Paper p="md" withBorder>
+              <Group justify="space-between" align="center" mb="md">
+                <Title order={3} fw={700} c="gray.9">
+                  Shelf Life Watchlist
+                </Title>
+                <Anchor size="xs" c="blue.6" fw={600} style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                  View Schedule <ArrowUpRight size={14} />
+                </Anchor>
+              </Group>
+
+              <Stack gap="md">
+                {[
+                  { name: 'Cetirizine 10mg', batch: 'B-CET88', stock: 95, date: 'Aug 10', color: 'red' },
+                  { name: 'Ibuprofen 400mg', batch: 'B-IBU11', stock: 0, date: 'Aug 30', color: 'orange' },
+                  { name: 'Atorvastatin 20mg', batch: 'B-ATO08', stock: 120, date: 'Sep 01', color: 'orange' },
+                ].map((item, index) => (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                    <div>
+                      <Text fw={600} size="sm" c="gray.9">{item.name}</Text>
+                      <Text size="xs" c="gray.6">
+                        Batch: {item.batch} • {item.stock} boxes at risk
+                      </Text>
+                    </div>
+                    <Badge color={item.color as any} size="sm" fw={700}>
+                      {item.date}
+                    </Badge>
+                  </div>
+                ))}
+              </Stack>
+            </Paper>
+
             {/* Recent Counter Sales Component */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>Live Store Logs</h3>
-                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+            <Paper p="md" withBorder>
+              <Group justify="space-between" align="center" mb="md">
+                <Title order={3} fw={700} c="gray.9">
+                  Live Store Logs
+                </Title>
+                <Anchor size="xs" c="blue.6" fw={600} style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
                   View Logs <ArrowUpRight size={14} />
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                </Anchor>
+              </Group>
+              <Stack gap="md">
                 {sales.map((sale) => (
                   <div key={sale.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{sale.item}</h4>
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>Qty: {sale.qty} units • {sale.time}</span>
+                      <Text fw={600} size="sm" c="gray.9">{sale.item}</Text>
+                      <Text size="xs" c="gray.6">
+                        Qty: {sale.qty} units • {sale.time}
+                      </Text>
                     </div>
-                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>₹{sale.total}</span>
+                    <Text fw={700} size="sm" c="gray.9">
+                      ₹{sale.total}
+                    </Text>
                   </div>
                 ))}
-              </div>
-            </div>
-  
-          </div>
-  
-        </div>
-  
-      </div>
-  )}
+              </Stack>
+            </Paper>
+          </Stack>
+        </Grid.Col>
+      </Grid>
+    </MantineContainer>
+  );
+}
