@@ -1,12 +1,12 @@
 // components/Sidebar.tsx
 import React, { useState } from 'react';
-import { Stack, NavLink, ActionIcon, Tooltip } from '@mantine/core';
+import { Stack, NavLink, ActionIcon, Tooltip, Card, Group, Text } from '@mantine/core';
 import { LayoutDashboard, Pill, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom'; // 👈 1. Import Link and useLocation
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
-  const location = useLocation(); // 👈 2. Track the active page by current URL
+  const location = useLocation();
 
   const linksData = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} />, path: '/' },
@@ -17,21 +17,20 @@ export default function Sidebar() {
   ];
 
   return (
-    <div style={{ 
-      width: isOpen ? '260px' : '80px',
-      backgroundColor: '#ffffff',
-      padding: '24px 16px',
-      borderRadius: '16px',
-      border: '1px solid #e2e8f0',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
-      height: 'fit-content',
-      transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '20px',
-      position: 'relative'
-    }}>
-      
+    <Card 
+      w={isOpen ? 260 : 80} 
+      p="md" 
+      radius="md"
+      withBorder
+      shadow="sm"
+      style={{ 
+        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        position: 'relative'
+      }}
+    >
       <ActionIcon 
         variant="light" 
         color="blue" 
@@ -49,18 +48,17 @@ export default function Sidebar() {
         {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </ActionIcon>
 
-      {isOpen && <div style={{ height: '12px' }} />}
+      {!isOpen && <div style={{ height: '12px' }} />}
 
-      <Stack gap="xs" style={{ marginTop: !isOpen ? '28px' : '0' }}>
+      <Stack gap="xs" mt={!isOpen ? '28px' : 0}>
         {linksData.map((item) => {
-          // 3. Determine if this tab's path matches the current browser URL
           const isActive = location.pathname === item.path;
 
           const navLinkEl = (
             <NavLink
               key={item.id}
-              component={Link} // 👈 4. Tell Mantine to render as a Router Link
-              to={item.path}   // 👈 5. Use the "to" prop instead of "href"
+              component={Link}
+              to={item.path}
               label={isOpen ? item.label : null}
               leftSection={item.icon}
               active={isActive}
@@ -89,6 +87,6 @@ export default function Sidebar() {
           );
         })}
       </Stack>
-    </div>
+    </Card>
   );
 }

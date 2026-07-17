@@ -14,7 +14,8 @@ import {
   SegmentedControl, 
   Box, 
   Breadcrumbs, 
-  Anchor 
+  Anchor,
+  Container
 } from '@mantine/core';
 import { Calendar, FileText, UploadCloud, Plus, X } from 'lucide-react';
 
@@ -34,8 +35,7 @@ export default function AddInventory() {
   ));
 
   return (
-    <Box style={{ width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
-      
+    <Container size="xl" px="lg">
       {/* 1. Breadcrumbs */}
       <Breadcrumbs mb="md">{items}</Breadcrumbs>
 
@@ -43,12 +43,10 @@ export default function AddInventory() {
       <Paper 
         p="xl" 
         radius="lg" 
-        style={{ 
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)'
-        }}
+        withBorder
+        shadow="md"
       >
-        <Title order={2} fw={700} style={{ color: '#1e293b' }}>
+        <Title order={2} fw={700} c="gray.9">
           Add New Inventory Item
         </Title>
         <Text size="sm" c="dimmed" mb="xl">
@@ -85,14 +83,14 @@ export default function AddInventory() {
             <TextInput 
               label="Batch Number" 
               placeholder="e.g., BATCH-12345" 
-              rightSection={<FileText size={16} color="#94a3b8" />}
+              rightSection={<FileText size={16}  />}
               styles={{ input: { height: '42px', borderRadius: '8px' } }}
             />
 
             <TextInput 
               label="Expiry Date" 
               placeholder="May 15, 2026" 
-              rightSection={<Calendar size={16} color="#94a3b8" />}
+              rightSection={<Calendar size={16}/>}
               styles={{ input: { height: '42px', borderRadius: '8px' } }}
             />
 
@@ -142,12 +140,12 @@ export default function AddInventory() {
             
             {/* Image Upload Box */}
             <Box>
-              <Text size="sm" fw={500} mb={5} style={{ color: '#2d3748' }}>Image Upload</Text>
+              <Text size="sm" fw={500} mb={5} c="gray.8">Image Upload</Text>
               <Paper
                 p="xl"
                 radius="lg"
+                withBorder
                 style={{
-                  border: '2px dashed #cbd5e1',
                   backgroundColor: '#f8fafc',
                   cursor: 'pointer',
                   textAlign: 'center',
@@ -158,8 +156,8 @@ export default function AddInventory() {
                   alignItems: 'center',
                 }}
               >
-                <UploadCloud size={32} color="#2563eb" style={{ marginBottom: '8px' }} />
-                <Text size="xs" fw={500} style={{ color: '#475569' }}>
+                <UploadCloud size={32} style={{ marginBottom: '8px' }} />
+                <Text size="xs" fw={500} c="gray.6">
                   Drag and drop medicine image or
                 </Text>
                 <Text size="xs" fw={700} c="blue">
@@ -170,7 +168,7 @@ export default function AddInventory() {
 
             {/* Status Toggle Box */}
             <Box>
-              <Text size="sm" fw={500} mb={5} style={{ color: '#2d3748' }}>Status badge</Text>
+              <Text size="sm" fw={500} mb={5} c="gray.8">Status badge</Text>
               <SegmentedControl
                 fullWidth
                 value={status}
@@ -212,6 +210,6 @@ export default function AddInventory() {
         </Group>
 
       </Paper>
-    </Box>
+    </Container>
   );
 }

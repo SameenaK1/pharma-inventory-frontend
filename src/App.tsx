@@ -1,18 +1,20 @@
 import React from 'react';
 import { MantineProvider } from '@mantine/core';
-import { Routes, Route } from 'react-router-dom'; // 👈 1. Import router components
+import { Routes, Route } from 'react-router-dom';
+import { Container, Group } from '@mantine/core';
 import Header from './components/header';
-import Sidebar from './components/sidebar'; // Make sure this uses 'useNavigate' from Option 1
+import Sidebar from './components/sidebar';
 import Dashboard from './components/dashboard';
 import AddInventory from './components/addmedicine';
+import NotFoundPage from './components/notfound';
 
 export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
-      <div style={{ fontFamily: '"Inter", system-ui, sans-serif', backgroundColor: '#f1f5f9', minHeight: '100vh', padding: '32px', color: '#334155' }}>
+      <Container size="xl" px="lg" style={{ backgroundColor: '#f1f5f9', minHeight: '100vh', color: '#334155' }}>
         <Header />
         
-        <div style={{ display: 'flex', gap: '32px', marginTop: '32px', alignItems: 'flex-start' }}>
+        <Group gap="32px" mt="32px" align="flex-start">
           <Sidebar /> 
           
           {/* Main Display Area */}
@@ -26,18 +28,16 @@ export default function App() {
               {/* Inventory Route: loads AddInventory */}
               <Route path="/addmedicine" element={<AddInventory />} />
               
-              {/* Catch-all Route: displays a dummy layout for any other path */}
-              <Route path="*" element={
-                <div style={{ padding: '32px', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                  <h2 style={{ marginTop: 0 }}>Page Under Construction</h2>
-                  <p style={{ color: '#64748b', margin: 0 }}>This dummy workspace is coming soon!</p>
-                </div>
-              } />
+              {/* 404 Route: displays the not found page */}
+              <Route path="/404-not-found" element={<NotFoundPage />} />
+              
+              {/* Catch-all Route: redirects to 404 page for any other path */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
 
           </div>
-        </div>
-      </div>
+        </Group>
+      </Container>
     </MantineProvider>
   );
 }
