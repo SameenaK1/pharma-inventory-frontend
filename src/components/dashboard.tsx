@@ -1,24 +1,25 @@
 import { useState } from 'react';
-import { 
-  AlertTriangle, 
-  Calendar, 
-  DollarSign, 
-  Activity, 
+import {
+  AlertTriangle,
+  Calendar,
+  DollarSign,
+  Activity,
   ArrowUpRight
 } from 'lucide-react';
-import { 
-  Table, 
-  Badge, 
-  Text, 
-  Grid, 
-  Group, 
-  Paper, 
-  Container, 
-  Title, 
+import {
+  Table,
+  Badge,
+  Text,
+  Grid,
+  Group,
+  Paper,
+  Container,
+  Title,
   Anchor,
-  Stack
+  Stack,
+  Box
 } from '@mantine/core';
-  
+
 const initialInventory = [
   { id: 'M001', name: 'Amoxicillin 500mg', batch: 'B-AMX92', stock: 14, price: 450, expiry: '2026-09-15', status: 'Low Stock' },
   { id: 'M002', name: 'Paracetamol 650mg', batch: 'B-PCM04', stock: 450, price: 20, expiry: '2028-04-20', status: 'Good' },
@@ -41,10 +42,10 @@ export default function Dashboard() {
   // 2. LIVE DASHBOARD CALCULATIONS
   const totalSalesRevenue = sales.reduce((acc, current) => acc + current.total, 0);
   const totalItemsInStock = inventory.reduce((acc, item) => acc + item.stock, 0);
-  
+
   const outOfStockItems = inventory.filter(item => item.stock === 0);
   const lowStockItems = inventory.filter(item => item.stock > 0 && item.stock <= 20);
-  
+
   // Calculate medicines expiring within the next 60 days
   const expiringMedicines = inventory.filter(item => {
     const expiryDate = new Date(item.expiry);
@@ -55,7 +56,7 @@ export default function Dashboard() {
   });
 
   const getStatusColor = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'Good': return 'green';
       case 'Low Stock': return 'orange';
       case 'Out of Stock': return 'red';
@@ -66,7 +67,7 @@ export default function Dashboard() {
   return (
     <Container size="xl" px="lg">
       {/* 4-COLUMN TOP CALCULATION METRICS */}
-      <Grid gutter="md" mb="32px">
+      <Grid gap="md" mb="32px">
         <Grid.Col span={{ base: 12, md: 3 }}>
           <Paper p="md" withBorder shadow="xs">
             <Group justify="space-between" align="center">
@@ -84,7 +85,7 @@ export default function Dashboard() {
             </Group>
           </Paper>
         </Grid.Col>
-        
+
         <Grid.Col span={{ base: 12, md: 3 }}>
           <Paper p="md" withBorder shadow="xs">
             <Group justify="space-between" align="center">
@@ -102,7 +103,7 @@ export default function Dashboard() {
             </Group>
           </Paper>
         </Grid.Col>
-        
+
         <Grid.Col span={{ base: 12, md: 3 }}>
           <Paper p="md" withBorder shadow="xs">
             <Group justify="space-between" align="center">
@@ -120,7 +121,7 @@ export default function Dashboard() {
             </Group>
           </Paper>
         </Grid.Col>
-        
+
         <Grid.Col span={{ base: 12, md: 3 }}>
           <Paper p="md" withBorder shadow="xs">
             <Group justify="space-between" align="center">
@@ -138,10 +139,10 @@ export default function Dashboard() {
             </Group>
           </Paper>
         </Grid.Col>
-      </MantineGrid>
+      </Grid>
 
       {/* CENTRAL APP LAYOUT ROW SPLIT */}
-      <Grid gutter="lg">
+      <Grid gap="lg">
         {/* LEFT COLUMN: CRITICAL DATA TABLES */}
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Stack gap="lg">
@@ -162,33 +163,35 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {inventory.map((item) => (
-                    <tr key={item.id}>
-                      <td fw={600} c="gray.9">{item.name}</td>
-                      <td ta="left" fontFamily="monospace" c="gray.6">{item.batch}</td>
-                      <td>{item.stock} boxes</td>
-                      <td c="gray.6">{item.expiry}</td>
-                      <td>
-                        <Badge 
-                          color={getStatusColor(item.status) as any}
+                    <Table.Tr key={item.id}>
+                      <Table.Td fw={600} c="gray.9">{item.name}</Table.Td>
+                      <Table.Td ta="left" ff="monospace" c="gray.6">{item.batch}</Table.Td>
+                      <Table.Td>{item.stock} boxes</Table.Td>
+                      <Table.Td c="gray.6">{item.expiry}</Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={getStatusColor(item.status)}
                           variant="light"
                           size="sm"
                         >
                           {item.status}
                         </Badge>
-                      </td>
-                    </tr>
+                      </Table.Td>
+                    </Table.Tr>
                   ))}
                 </tbody>
               </Table>
             </Paper>
 
             {/* Special Focus: Critical Warnings Box */}
-            <Grid gutter="md">
+            <Grid gap="md">
               {/* Out of Stock Warning Container */}
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Paper p="md" withBorder>
                   <Group align="center" gap="xs" mb="md">
-                    <AlertTriangle size={16} c="red.6" />
+                    <Box c="red.6" lts="0">
+                      <AlertTriangle size={16} />
+                    </Box>
                     <Title order={4} fw={700} c="red.6" size="sm">
                       Immediate Out-of-Stock Risk
                     </Title>
@@ -213,7 +216,9 @@ export default function Dashboard() {
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Paper p="md" withBorder>
                   <Group align="center" gap="xs" mb="md">
-                    <Calendar size={16} c="orange.6" />
+                    <Box c="orange.6" lts="0">
+                      <Calendar size={16} />
+                    </Box>
                     <Title order={4} fw={700} c="orange.6" size="sm">
                       Impending Expiry (&lt; 60 Days)
                     </Title>
@@ -303,6 +308,6 @@ export default function Dashboard() {
           </Stack>
         </Grid.Col>
       </Grid>
-    </MantineContainer>
+    </Container>
   );
 }

@@ -13,7 +13,7 @@ import {
 
 export default function Header() {
   return (
-    <header mb="32px" pb="8px" style={{ borderBottom: '1px solid #e2e8f0' }}>
+    <Box mb="32px" pb="8px" style={{ borderBottom: '1px solid #e2e8f0' }}>
       <Container size="xl" px="lg">
         <Group justify="space-between" align="center">
           {/* 1. Brand Logo Area (Left) */}
@@ -24,7 +24,10 @@ export default function Header() {
             gap="md"
             style={{ borderRadius: '8px' }}
           >
-            <Pill size={24} c="blue.6" />
+            <Box c="blue.6" lts="0">
+   <Pill size={24}  />
+</Box>
+          
             <Text size="34px" fw="800" c="gray.9">
               Pharma<Text c="blue.6">Track</Text>
             </Text>
@@ -34,7 +37,7 @@ export default function Header() {
           <Box flex={1} mx="xl" style={{ maxWidth: '600px' }}>
             <TextInput
               placeholder="Quick search medicines, batches, manufacturers..."
-              leftSection={<Search size={18} c="gray.4" />}
+              leftSection={<Search size={18} color="gray.4" />}
               radius="md"
               size="md"
               styles={{
@@ -57,6 +60,6 @@ export default function Header() {
           </Group>
         </Group>
       </Container>
-    </header>
+    </Box>
   );
 }

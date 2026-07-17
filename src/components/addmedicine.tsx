@@ -83,14 +83,14 @@ export default function AddInventory() {
             <TextInput 
               label="Batch Number" 
               placeholder="e.g., BATCH-12345" 
-              rightSection={<FileText size={16} c="gray.4" />}
+              rightSection={<FileText size={16}  />}
               styles={{ input: { height: '42px', borderRadius: '8px' } }}
             />
 
             <TextInput 
               label="Expiry Date" 
               placeholder="May 15, 2026" 
-              rightSection={<Calendar size={16} c="gray.4" />}
+              rightSection={<Calendar size={16}/>}
               styles={{ input: { height: '42px', borderRadius: '8px' } }}
             />
 
@@ -156,7 +156,7 @@ export default function AddInventory() {
                   alignItems: 'center',
                 }}
               >
-                <UploadCloud size={32} c="blue.6" style={{ marginBottom: '8px' }} />
+                <UploadCloud size={32} style={{ marginBottom: '8px' }} />
                 <Text size="xs" fw={500} c="gray.6">
                   Drag and drop medicine image or
                 </Text>
