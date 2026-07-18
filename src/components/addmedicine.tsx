@@ -1,5 +1,5 @@
 // components/AddInventory.tsx
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { 
   Stack,
   Paper, 
@@ -15,13 +15,22 @@ import {
   Box, 
   Breadcrumbs, 
   Anchor,
-  Container
+  Container,
+  Autocomplete,
+  Loader
 } from '@mantine/core';
 import { Calendar, FileText, UploadCloud, Plus, X } from 'lucide-react';
+import { debounce } from '../utils/debounce';
+import type { Medicine } from '../services/api';
+import { getMedicineByName } from '../services/api';
 
 export default function AddInventory() {
   const [status, setStatus] = useState('active');
   const [quantity, setQuantity] = useState<number | string>(1);
+  const [medicineName, setMedicineName] = useState('');
+  const [suggestions, setSuggestions] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
 
   // Breadcrumbs navigation mapping
   const items = [
@@ -33,6 +42,49 @@ export default function AddInventory() {
       {item.title}
     </Anchor>
   ));
+
+  // Debounced function to search medicines
+  const debouncedSearch = useCallback(
+    debounce(async (name: string) => {
+      if (!name.trim()) {
+        setSuggestions([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await getMedicineByName(name);
+        setSuggestions(response.data);
+      } catch (error) {
+        console.error('Error fetching medicine data:', error);
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 1000),
+    []
+  );
+
+  // Handle medicine name change
+  const handleMedicineNameChange = (value: string) => {
+    setMedicineName(value);
+    debouncedSearch(value);
+  };
+
+  // Handle medicine selection from autocomplete
+  const handleMedicineSelect = (medicine: Medicine) => {
+    setSelectedMedicine(medicine);
+    setMedicineName(medicine.name);
+    setSuggestions([]);
+  };
+
+  // Clear selection
+  const clearSelection = () => {
+    setSelectedMedicine(null);
+    setMedicineName('');
+    setSuggestions([]);
+  };
 
   return (
     <Container size="xl" px="lg">
@@ -59,12 +111,47 @@ export default function AddInventory() {
           {/* COLUMN 1 & COLUMN 2 (Form Inputs) */}
           <SimpleGrid cols={2} style={{ gridColumn: 'span 2' }} spacing="md">
             
-            <TextInput 
-              label="Medicine Name" 
-              placeholder="Paracetamol 500mg" 
-              required 
-              styles={{ input: { height: '42px', borderRadius: '8px' } }}
-            />
+            <Box pos="relative">
+              {selectedMedicine ? (
+                <Box p="md" bg="blue.50" style={{ borderRadius: '8px' }} mb="md">
+                  <Group justify="space-between" mb="sm">
+                    <Text fw={600} size="sm">Selected Medicine:</Text>
+                    <Button size="xs" variant="subtle" color="red" onClick={clearSelection}>
+                      <X size={14} />
+                    </Button>
+                  </Group>
+                  <Text size="sm" fw={500}>{selectedMedicine.name}</Text>
+                  <Text size="xs" c="dimmed">{selectedMedicine.manufacturer_name}</Text>
+                  <Text size="xs" c="dimmed">{selectedMedicine.pack_size_label}</Text>
+                </Box>
+              ) : null}
+              
+              <Autocomplete
+                label="Medicine Name"
+                placeholder="Start typing medicine name..."
+                value={medicineName}
+                onChange={handleMedicineNameChange}
+                data={suggestions.map(med => med.name)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    const input = event.currentTarget as HTMLInputElement;
+                    const value = input.value;
+                    const medicine = suggestions.find(med => med.name === value);
+                    if (medicine) {
+                      handleMedicineSelect(medicine);
+                    }
+                  }
+                }}
+                rightSection={loading ? <Loader size="sm" /> : null}
+                rightSectionWidth={40}
+                styles={{ input: { height: '42px', borderRadius: '8px' } }}
+              />
+              {medicineName && !selectedMedicine && (
+                <Text size="xs" c="dimmed" mt={4}>
+                  {suggestions.length} medicine(s) found
+                </Text>
+              )}
+            </Box>
             
             <TextInput 
               label="Generic Name" 
