@@ -32,6 +32,7 @@ export default function AddInventory() {
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
   const [composition1, setComposition1] = useState('');
   const [composition2, setComposition2] = useState('');
+  const [manufacturer, setmanufacturer] = useState('');
 
   // Breadcrumbs navigation mapping
   const items = [
@@ -80,6 +81,7 @@ export default function AddInventory() {
     setMedicineName(medicine.name);
     setComposition1(medicine.composition1 || '');
     setComposition2(medicine.composition2 || '');
+    setmanufacturer(medicine.manufacturer_name || '');
     setSuggestions([]);
   };
 
@@ -89,6 +91,7 @@ export default function AddInventory() {
     setMedicineName('');
     setComposition1('');
     setComposition2('');
+    setmanufacturer('');
     setSuggestions([]);
   };
 
@@ -125,7 +128,7 @@ export default function AddInventory() {
             <Text fw={600} size="sm" mb="sm" c="blue.7">1. Product Core Details</Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
               <Box pos="relative">
-                {selectedMedicine ? (
+                {/* {selectedMedicine ? (
                   <Box p="xs" bg="blue.0" mb="xs" style={{ borderRadius: '6px' }}>
                     <Group justify="space-between" mb={2}>
                       <Text fw={600} size="10px" c="blue.7">Selected:</Text>
@@ -135,24 +138,31 @@ export default function AddInventory() {
                     </Group>
                     <Text size="xs" fw={500} c="gray.9" truncate>{selectedMedicine.name}</Text>
                   </Box>
-                ) : null}
+                ) : null} */}
                 
                 <Autocomplete
                   label="Medicine Name"
                   placeholder="Search medicine..."
                   value={medicineName}
-                  onChange={handleMedicineNameChange}
-                  data={suggestions.map(med => med.name)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      const input = event.currentTarget as HTMLInputElement;
-                      const value = input.value;
-                      const medicine = suggestions.find(med => med.name === value);
-                      if (medicine) {
-                        handleMedicineSelect(medicine);
-                      }
+                  onChange={(value) => {
+                    handleMedicineNameChange(value);
+                    // Find the medicine object from suggestions
+                    const medicine = suggestions.find(med => med.name === value);
+                    if (medicine) {
+                      handleMedicineSelect(medicine);
                     }
                   }}
+                   data={suggestions.map(med => med.name)}
+                  // onKeyDown={(event) => {
+                  //   if (event.key === 'Enter') {
+                  //     const input = event.currentTarget as HTMLInputElement;
+                  //     const value = input.value;
+                  //     const medicine = suggestions.find(med => med.name === value);
+                  //     if (medicine) {
+                  //       handleMedicineSelect(medicine);
+                  //     }
+                  //   }
+                  // }}
                   rightSection={loading ? <Loader size="sm" /> : null}
                   rightSectionWidth={40}
                   styles={inputStyles}
@@ -179,13 +189,6 @@ export default function AddInventory() {
                 searchable
                 styles={inputStyles}
               />
-
-              {/* <TextInput 
-                label="Batch Number" 
-                placeholder="e.g., BATCH-12345" 
-                rightSection={<FileText size={16} style={{ color: '#94a3b8' }} />}
-                styles={inputStyles}
-              /> */}
             </SimpleGrid>
           </Box>
 
@@ -193,6 +196,13 @@ export default function AddInventory() {
           <Box>
             <Text fw={600} size="sm" mb="sm" c="blue.7">2. Formula & Logistics</Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+              <TextInput 
+                label="Manufacturer"
+                placeholder="eg. Cipla Ltd."
+                 value={manufacturer}
+                onChange={(event) => setmanufacturer(event.currentTarget.value)}
+                styles={inputStyles}
+              />
               <TextInput 
                 label="Composition 1" 
                 placeholder="e.g., Paracetamol 500mg"
@@ -208,13 +218,7 @@ export default function AddInventory() {
                 styles={inputStyles}
               />
               
-              <Select
-                label="Manufacturer"
-                placeholder="Select manufacturer"
-                data={['Cipla', 'Sun Pharma', 'Dr. Reddy\'s', 'Lupin', 'Abbott']}
-                searchable
-                styles={inputStyles}
-              />
+              
             </SimpleGrid>
           </Box>
 

@@ -28,7 +28,6 @@ export const getMedicineByName = async (name: string): Promise<MedicineApiRespon
   }
 
   const response = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`);
-  console.log(response)
   if (!response.ok) {
     throw new Error('Failed to fetch medicine data');
   }
