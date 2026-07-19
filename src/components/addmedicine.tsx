@@ -16,7 +16,8 @@ import {
   Anchor,
   Container,
   Autocomplete,
-  Loader
+  Loader,
+  Alert
 } from '@mantine/core';
 import { Calendar, UploadCloud, Plus, X } from 'lucide-react';
 import { debounce } from '../utils/debounce';
@@ -33,6 +34,10 @@ export default function AddInventory() {
   const [composition1, setComposition1] = useState('');
   const [composition2, setComposition2] = useState('');
   const [manufacturer, setmanufacturer] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  
+  // Add validation for required fields
+  const isFormValid = selectedMedicine && medicineName && manufacturer && composition1;
 
   // Breadcrumbs navigation mapping
   const items = [
@@ -58,9 +63,11 @@ export default function AddInventory() {
       try {
         const response = await getMedicineByName(name);
         setSuggestions(response.data);
+        setError(null);
       } catch (error) {
         console.error('Error fetching medicine data:', error);
         setSuggestions([]);
+        setError('Failed to fetch medicine data. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -128,7 +135,18 @@ export default function AddInventory() {
             <Text fw={600} size="sm" mb="sm" c="blue.7">1. Product Core Details</Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
               <Box pos="relative">
-                {/* {selectedMedicine ? (
+                {error && (
+                  <Alert 
+                    color="red" 
+                    size="sm" 
+                    mb="sm" 
+                    style={{ borderRadius: '6px' }}
+                  >
+                    {error}
+                  </Alert>
+                )}
+                
+                {selectedMedicine && (
                   <Box p="xs" bg="blue.0" mb="xs" style={{ borderRadius: '6px' }}>
                     <Group justify="space-between" mb={2}>
                       <Text fw={600} size="10px" c="blue.7">Selected:</Text>
@@ -137,8 +155,9 @@ export default function AddInventory() {
                       </Button>
                     </Group>
                     <Text size="xs" fw={500} c="gray.9" truncate>{selectedMedicine.name}</Text>
+                    <Text size="9px" c="dimmed">{selectedMedicine.manufacturer_name}</Text>
                   </Box>
-                ) : null} */}
+                )}
                 
                 <Autocomplete
                   label="Medicine Name"
@@ -146,30 +165,25 @@ export default function AddInventory() {
                   value={medicineName}
                   onChange={(value) => {
                     handleMedicineNameChange(value);
+                  }}
+                  onItemSubmit={(item) => {
                     // Find the medicine object from suggestions
-                    const medicine = suggestions.find(med => med.name === value);
+                    const medicine = suggestions.find(med => med.name === item.value);
                     if (medicine) {
                       handleMedicineSelect(medicine);
                     }
                   }}
-                   data={suggestions.map(med => med.name)}
-                  // onKeyDown={(event) => {
-                  //   if (event.key === 'Enter') {
-                  //     const input = event.currentTarget as HTMLInputElement;
-                  //     const value = input.value;
-                  //     const medicine = suggestions.find(med => med.name === value);
-                  //     if (medicine) {
-                  //       handleMedicineSelect(medicine);
-                  //     }
-                  //   }
-                  // }}
+                   data={suggestions.map(med => ({
+                     value: med.name,
+                     label: `${med.name} (${med.manufacturer_name || 'Unknown'})`
+                   }))}
                   rightSection={loading ? <Loader size="sm" /> : null}
                   rightSectionWidth={40}
                   styles={inputStyles}
                 />
                 {medicineName && !selectedMedicine && (
                   <Text size="xs" c="dimmed" mt={4}>
-                    {suggestions.length} found
+                    {suggestions.length} found{suggestions.length > 1 ? ' - select the correct medicine' : ''}
                   </Text>
                 )}
               </Box>
@@ -328,6 +342,7 @@ export default function AddInventory() {
             size="md"
             leftSection={<Plus size={16} />}
             style={{ boxShadow: '0 4px 12px rgba(34, 138, 230, 0.25)' }}
+            disabled={!isFormValid}
           >
             Save & Add Item
           </Button>
