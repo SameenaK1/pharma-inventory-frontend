@@ -1,5 +1,15 @@
 // API service for medicine inventory
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+declare global {
+  interface Window {
+    process?: {
+      env?: {
+        REACT_APP_API_URL?: string;
+      };
+    };
+  }
+}
+
+const API_BASE_URL = (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) || 'http://localhost:8080';
 
 export interface Medicine {
   id: number;
