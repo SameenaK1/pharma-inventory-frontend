@@ -49,7 +49,7 @@ export const getMedicineByName = async (name: string): Promise<MedicineApiRespon
   return response.json();
 };
 
-export const getManufacturerName = async (name: string): Promise<MedicineApiResponse> => {
+export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
   if (!name.trim()) {
     throw new Error('Search term is required');
   }

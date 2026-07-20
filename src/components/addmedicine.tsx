@@ -16,13 +16,18 @@ import {
   Anchor,
   Container,
   Autocomplete,
-  Loader,
-  Alert
+  Loader
 } from '@mantine/core';
 import { Calendar, UploadCloud, Plus, X } from 'lucide-react';
 import { debounce } from '../utils/debounce';
 import type { Medicine } from '../services/api';
 import { getMedicineByName, getManufacturerName } from '../services/api';
+
+// Manufacturer type for type safety
+export type Manufacturer = {
+  id: number;
+  name: string;
+};
 
 export default function AddInventory() {
   const [quantity, setQuantity] = useState<number | string>(1);
@@ -34,13 +39,13 @@ export default function AddInventory() {
   const [composition1, setComposition1] = useState('');
   const [composition2, setComposition2] = useState('');
   const [manufacturer, setmanufacturer] = useState('')
-  const [manufacturerSuggestions, setManufacturerSuggestions] = useState<any[]>([]);
+  const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
   const [packsize, setpacksize] = useState<number | string>(0);
   const [error, setError] = useState<string | null>(null);
 
   // Add validation for required fields
-  const isFormValid = selectedMedicine && medicineName && manufacturer && composition1;
+  const isFormValid = medicineName;
 
   // Breadcrumbs navigation mapping
   const items = [
@@ -124,14 +129,20 @@ export default function AddInventory() {
 
   // Handle manufacturer name change
   const handleManufacturerNameChange = (value: string) => {
-    setmanufacturer(value);
-    debouncedManufacturerSearch(value);
+   setmanufacturer(value);
+  if (!value.trim()) {
+    setManufacturerSuggestions([]);
+    setManufacturerLoading(false);
+    return;
+  }
+  debouncedManufacturerSearch(value);
   };
 
   // Handle manufacturer selection from autocomplete
   const handleManufacturerSelect = (manufacturerName: string) => {
     setmanufacturer(manufacturerName);
     setManufacturerSuggestions([]);
+  setManufacturerLoading(false);
   };
 
   // Clear selection
@@ -186,7 +197,11 @@ export default function AddInventory() {
                   onChange={(value) => {
                     handleMedicineNameChange(value);
 
-                    const medicine = suggestions.find(med => med.name === value);
+                    // Extract ID from value if it contains ||id: format
+                    const medicineId = value.split('||id:')[1];
+                    const medicine = medicineId 
+                      ? suggestions.find(med => med.id.toString() === medicineId)
+                      : suggestions.find(med => med.name === value);
 
                     if (medicine) {
                       handleMedicineSelect(medicine);
@@ -255,6 +270,7 @@ export default function AddInventory() {
                 rightSectionWidth={40}
                 styles={inputStyles}
               />
+              
               <TextInput
                 label="Composition 1"
                 placeholder="e.g., Paracetamol 500mg"
