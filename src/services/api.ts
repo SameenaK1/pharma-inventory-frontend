@@ -31,6 +31,10 @@ export interface MedicineApiResponse {
     total: number;
   };
 }
+export interface Manufacturer {
+  id: number;
+  name: string;
+}
 
 export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
   if (!name.trim()) {
@@ -40,6 +44,19 @@ export const getMedicineByName = async (name: string): Promise<MedicineApiRespon
   const response = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`);
   if (!response.ok) {
     throw new Error('Failed to fetch medicine data');
+  }
+
+  return response.json();
+};
+
+export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
+  if (!name.trim()) {
+    throw new Error('Search term is required');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch manufacturer data');
   }
 
   return response.json();
