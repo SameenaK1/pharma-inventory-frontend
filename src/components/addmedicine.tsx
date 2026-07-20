@@ -22,7 +22,7 @@ import {
 import { Calendar, UploadCloud, Plus, X } from 'lucide-react';
 import { debounce } from '../utils/debounce';
 import type { Medicine } from '../services/api';
-import { getMedicineByName } from '../services/api';
+import { getMedicineByName, getManufacturerName } from '../services/api';
 
 export default function AddInventory() {
   const [quantity, setQuantity] = useState<number | string>(1);
@@ -34,6 +34,8 @@ export default function AddInventory() {
   const [composition1, setComposition1] = useState('');
   const [composition2, setComposition2] = useState('');
   const [manufacturer, setmanufacturer] = useState('')
+  const [manufacturerSuggestions, setManufacturerSuggestions] = useState<any[]>([]);
+  const [manufacturerLoading, setManufacturerLoading] = useState(false);
   const [packsize, setpacksize] = useState<number | string>(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,30 +53,57 @@ export default function AddInventory() {
     </Anchor>
   ));
 
-  // Debounced function to search medicines
-  const debouncedSearch = useCallback(
-    debounce(async (name: string, isSelection: boolean = false) => {
-      // FIX: If it's a selection click, shut down the loader and skip the API entirely
-      if (isSelection || !name.trim()) {
-        setSuggestions([]);
-        setLoading(false);
-        return;
-      }
+  // Generic debounced search hook
+  const useDebouncedSearch = (
+    apiFunction: (query: string) => Promise<any>,
+    setSuggestions: (data: any[]) => void,
+    setLoading: (loading: boolean) => void,
+    setError: (error: string | null) => void,
+    emptyValue: () => void = () => {}
+  ) => {
+    const debouncedSearch = useCallback(
+      debounce(async (name: string, isSelection: boolean = false) => {
+        if (isSelection || !name.trim()) {
+          emptyValue();
+          setLoading(false);
+          return;
+        }
 
-      setLoading(true);
-      try {
-        const response = await getMedicineByName(name);
-        setSuggestions(response.data);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching medicine data:', error);
-        setSuggestions([]);
-        setError('Failed to fetch medicine data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }, 1000),
-    []
+        setLoading(true);
+        try {
+          const response = await apiFunction(name);
+          setSuggestions(response.data || []);
+          setError(null);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          setSuggestions([]);
+          setError('Failed to fetch data. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      }, 1000),
+      [apiFunction]
+    );
+
+    return debouncedSearch;
+  };
+
+  // Medicine search setup
+  const debouncedSearch = useDebouncedSearch(
+    getMedicineByName,
+    setSuggestions,
+    setLoading,
+    setError,
+    () => setSuggestions([])
+  );
+
+  // Manufacturer search setup
+  const debouncedManufacturerSearch = useDebouncedSearch(
+    getManufacturerName,
+    setManufacturerSuggestions,
+    setManufacturerLoading,
+    setError,
+    () => setManufacturerSuggestions([])
   );
 
   // Handle medicine name change
@@ -93,6 +122,18 @@ export default function AddInventory() {
     setSuggestions([]);
   };
 
+  // Handle manufacturer name change
+  const handleManufacturerNameChange = (value: string) => {
+    setmanufacturer(value);
+    debouncedManufacturerSearch(value);
+  };
+
+  // Handle manufacturer selection from autocomplete
+  const handleManufacturerSelect = (manufacturerName: string) => {
+    setmanufacturer(manufacturerName);
+    setManufacturerSuggestions([]);
+  };
+
   // Clear selection
   const clearSelection = () => {
     setSelectedMedicine(null);
@@ -101,6 +142,7 @@ export default function AddInventory() {
     setComposition2('');
     setmanufacturer('');
     setSuggestions([]);
+    setManufacturerSuggestions([]);
   };
 
   const inputStyles = { input: { height: '42px', borderRadius: '8px' } };
@@ -192,11 +234,25 @@ export default function AddInventory() {
           <Box>
             <Text fw={600} size="sm" mb="sm" c="blue.7">2. Formula & Logistics</Text>
             <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-              <TextInput
+              <Autocomplete
                 label="Manufacturer"
-                placeholder="eg. Cipla Ltd."
+                placeholder="Search manufacturer..."
                 value={manufacturer}
-                onChange={(event) => setmanufacturer(event.currentTarget.value)}
+                onChange={(value) => {
+                  // Check if the value is from suggestions (manufacturer name)
+                  const selectedManufacturer = manufacturerSuggestions.find(m => m.name === value);
+                  if (selectedManufacturer) {
+                    handleManufacturerSelect(value);
+                    return;
+                  }
+                  handleManufacturerNameChange(value);
+                }}
+                data={manufacturerSuggestions.map(manufacturer => ({
+                  value: manufacturer.name,
+                  label: manufacturer.name
+                }))}
+                rightSection={manufacturerLoading ? <Loader size="sm" /> : null}
+                rightSectionWidth={40}
                 styles={inputStyles}
               />
               <TextInput
