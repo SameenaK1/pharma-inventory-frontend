@@ -1,5 +1,9 @@
 // components/AddInventory.tsx
 import { useState, useCallback } from 'react';
+// Make sure to import the CSS file if you haven't in your app's root (e.g., main.tsx or _app.tsx)
+import '@mantine/dates/styles.css';
+import { notifications } from '@mantine/notifications';
+import { Check, AlertTriangle } from 'lucide-react'; // Optional: for clean status icons
 import {
   Stack,
   Paper,
@@ -18,10 +22,10 @@ import {
   Autocomplete,
   Loader
 } from '@mantine/core';
-import { Calendar, UploadCloud, Plus, X } from 'lucide-react';
+import { UploadCloud, Plus, X } from 'lucide-react';
 import { debounce } from '../utils/debounce';
 import type { Medicine } from '../services/api';
-import { getMedicineByName, getManufacturerName } from '../services/api';
+import { getMedicineByName, getManufacturerName, addInventory, type InventoryItem } from '../services/api';
 
 // Manufacturer type for type safety
 export type Manufacturer = {
@@ -31,7 +35,7 @@ export type Manufacturer = {
 
 export default function AddInventory() {
   const [quantity, setQuantity] = useState<number | string>(1);
-  const [alertthreshold, setalertthreshold] = useState<number | string>(10);
+  const [alertthreshold, setalertthreshold] = useState<number | string>(6);
   const [medicineName, setMedicineName] = useState('');
   const [suggestions, setSuggestions] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,9 +47,85 @@ export default function AddInventory() {
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
   const [packsize, setpacksize] = useState<number | string>(0);
   const [error, setError] = useState<string | null>(null);
+  const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
+  const [sellingPrice, setSellingPrice] = useState<number | string>(0);
+  const [mrp, setMrp] = useState<number | string>(0);
+  const [medicineType, setMedicineType] = useState<string | null>(""); // Sets Allopathy as default
+  const [dosageForm, setDosageForm] = useState<string | null>('');
+const [isSubmitted, setIsSubmitted] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<string>('');
 
   // Add validation for required fields
-  const isFormValid = medicineName;
+  const isMedicineNameValid = medicineName.trim().length > 0;
+const isQuantityValid = Number(quantity) >= 1; // Ensures it's a valid number
+
+// The form is only submittable if both fields check out
+const isFormValid = isMedicineNameValid && isQuantityValid;
+
+  // Handle form submission
+  const handleSubmit = async () => {
+  setIsSubmitted(true); 
+
+  if (!isFormValid) {
+    
+    const missingFields: string[] = [];
+    if (!isMedicineNameValid) missingFields.push("Medicine Name");
+    if (!isQuantityValid) missingFields.push("Quantity in Stock");
+
+    notifications.show({
+      title: 'Validation Error',
+      message: `Please fill out the required field(s): ${missingFields.join(', ')} before submitting.`,
+      color: 'red',
+      icon: <AlertTriangle size={16} />,
+      autoClose: 5000,
+    });
+    
+    return; 
+  }
+
+  // 2. Database/API Submission
+  try {
+    const item: InventoryItem = {
+      name: medicineName,
+      manufacturername: manufacturer,
+      type: medicineType || "Allopathy",
+      packsizelabel: packsize?.toString() || "",
+      composition1: composition1,
+      composition2: composition2,
+      mrp: Number(mrp) || 0,
+      stockquantity: Number(quantity) || 0,
+      purchaseprice: Number(purchasePrice) || 0,
+      sellingprice: Number(sellingPrice) || 0,
+      stockalertthreshold: Number(alertthreshold) || 0,
+      expirydate: expiryDate || "",
+      username: "admin",
+      insertdate: "2026-07-21",
+      updatedate: "2026-07-21"
+    };
+
+    const response = await addInventory(item);
+    
+    notifications.show({
+      title: 'Success!',
+      message: `${medicineName} has been successfully added to the inventory records.`,
+      color: 'green',
+      icon: <Check size={16} />,
+      autoClose: 4000,
+    });
+    
+    clearSelection();
+
+  } catch (err) {
+    setError('Failed to add medicine. Please try again.');
+    notifications.show({
+      title: 'Submission Failed',
+      message: 'Server error encountered while saving inventory data. If the issue persists, contact support.',
+      color: 'red',
+      icon: <AlertTriangle size={16} />,
+      autoClose: 5000,
+    });
+  }
+};
 
   // Breadcrumbs navigation mapping
   const items = [
@@ -64,7 +144,7 @@ export default function AddInventory() {
     setSuggestions: (data: any[]) => void,
     setLoading: (loading: boolean) => void,
     setError: (error: string | null) => void,
-    emptyValue: () => void = () => {}
+    emptyValue: () => void = () => { }
   ) => {
     const debouncedSearch = useCallback(
       debounce(async (name: string, isSelection: boolean = false) => {
@@ -80,7 +160,6 @@ export default function AddInventory() {
           setSuggestions(response.data || []);
           setError(null);
         } catch (error) {
-          console.error('Error fetching data:', error);
           setSuggestions([]);
           setError('Failed to fetch data. Please try again.');
         } finally {
@@ -129,20 +208,20 @@ export default function AddInventory() {
 
   // Handle manufacturer name change
   const handleManufacturerNameChange = (value: string) => {
-   setmanufacturer(value);
-  if (!value.trim()) {
-    setManufacturerSuggestions([]);
-    setManufacturerLoading(false);
-    return;
-  }
-  debouncedManufacturerSearch(value);
+    setmanufacturer(value);
+    if (!value.trim()) {
+      setManufacturerSuggestions([]);
+      setManufacturerLoading(false);
+      return;
+    }
+    debouncedManufacturerSearch(value);
   };
 
   // Handle manufacturer selection from autocomplete
   const handleManufacturerSelect = (manufacturerName: string) => {
     setmanufacturer(manufacturerName);
     setManufacturerSuggestions([]);
-  setManufacturerLoading(false);
+    setManufacturerLoading(false);
   };
 
   // Clear selection
@@ -152,10 +231,19 @@ export default function AddInventory() {
     setComposition1('');
     setComposition2('');
     setmanufacturer('');
+    setQuantity(1);
+    setalertthreshold(6);
+    setpacksize(0);
+    setPurchasePrice(0);
+    setSellingPrice(0);
+    setMrp(0);
     setSuggestions([]);
+    setExpiryDate("");
     setManufacturerSuggestions([]);
+    setMedicineType('');
+    setDosageForm('');
+    setIsSubmitted(false);
   };
-
   const inputStyles = { input: { height: '42px', borderRadius: '8px' } };
 
   return (
@@ -193,15 +281,13 @@ export default function AddInventory() {
                 <Autocomplete
                   label="Medicine Name"
                   placeholder="Search medicine..."
+                  required // Adds a visual red asterisk next to the label
+  error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
                   value={medicineName}
                   onChange={(value) => {
                     handleMedicineNameChange(value);
 
-                    // Extract ID from value if it contains ||id: format
-                    const medicineId = value.split('||id:')[1];
-                    const medicine = medicineId 
-                      ? suggestions.find(med => med.id.toString() === medicineId)
-                      : suggestions.find(med => med.name === value);
+                    const medicine = suggestions.find(med => med.name === value);
 
                     if (medicine) {
                       handleMedicineSelect(medicine);
@@ -227,21 +313,29 @@ export default function AddInventory() {
                   </Text>
                 )}
               </Box>
+
               <Select
                 label="Medicine Type"
                 placeholder="e.g., Allopathy"
                 data={['Allopathy', 'Ayurvedic', 'Homeopathic']}
+                value={medicineType}
+                onChange={setMedicineType}
                 searchable
                 styles={inputStyles}
+                clearable
               />
 
               <Select
                 label="Dosage Form"
                 placeholder="e.g., Tablet"
                 data={['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment']}
+                value={dosageForm}
+                onChange={setDosageForm}
                 searchable
                 styles={inputStyles}
+                clearable
               />
+
             </SimpleGrid>
           </Box>
 
@@ -270,7 +364,7 @@ export default function AddInventory() {
                 rightSectionWidth={40}
                 styles={inputStyles}
               />
-              
+
               <TextInput
                 label="Composition 1"
                 placeholder="e.g., Paracetamol 500mg"
@@ -296,18 +390,21 @@ export default function AddInventory() {
 
               {/* Left Column: Stock Logistics */}
               <Stack gap="md">
+               <NumberInput
+  label="Quantity in Stock"
+  required
+  value={quantity}
+  onChange={setQuantity}
+  min={0}
+  error={isSubmitted && !isQuantityValid ? "Stock quantity must be 1 or greater" : null}
+  styles={inputStyles}
+/>
                 <NumberInput
-                  label="Quantity in Stock"
-                  value={quantity}
-                  onChange={setQuantity}
-                  min={0}
-                  styles={inputStyles}
-                />
-                <NumberInput
-                  label="Stock Alert Threshold"
+                  label="Stock Alert Threshold(Months)"
                   value={alertthreshold}
                   onChange={setalertthreshold}
                   min={0}
+                  max={60}
                   styles={inputStyles}
                 />
                 <TextInput
@@ -323,21 +420,27 @@ export default function AddInventory() {
               <Stack gap="md">
                 <NumberInput
                   label="Purchase Price (₹)"
-                  placeholder="₹ 0.00"
+                  placeholder="0.00"
+                  value={purchasePrice}
+                  onChange={setPurchasePrice}
                   min={0}
                   decimalScale={2}
                   styles={inputStyles}
                 />
                 <NumberInput
                   label="Selling Price (₹)"
-                  placeholder="₹ 0.00"
+                  placeholder="0.00"
+                  value={sellingPrice}
+                  onChange={setSellingPrice}
                   min={0}
                   decimalScale={2}
                   styles={inputStyles}
                 />
                 <NumberInput
                   label="MRP (₹)"
-                  placeholder="₹ 0.00"
+                  placeholder="0.00"
+                  value={mrp}
+                  onChange={setMrp}
                   min={0}
                   decimalScale={2}
                   styles={inputStyles}
@@ -347,12 +450,12 @@ export default function AddInventory() {
               {/* Right Column: Expiry & Media Zone */}
               <Stack gap="md">
                 <TextInput
+                  type="date"
                   label="Expiry Date"
-                  placeholder="May 15, 2026"
-                  rightSection={<Calendar size={16} style={{ color: '#94a3b8' }} />}
+                  value={expiryDate || ''} // Guarantee it's never undefined
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setExpiryDate(event.target.value)}
                   styles={inputStyles}
-                />
-                <Box style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                />          <Box style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <Text size="sm" fw={500} mb="xs" c="gray.8">Product Image</Text>
                   <Box
                     p="md"
@@ -401,7 +504,8 @@ export default function AddInventory() {
             size="md"
             leftSection={<Plus size={16} />}
             style={{ boxShadow: '0 4px 12px rgba(34, 138, 230, 0.25)' }}
-            disabled={!isFormValid}
+           
+            onClick={handleSubmit}
           >
             Save & Add Item
           </Button>

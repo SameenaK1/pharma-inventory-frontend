@@ -36,6 +36,24 @@ export interface Manufacturer {
   name: string;
 }
 
+export interface InventoryItem {
+  name: string;
+  manufacturername: string;
+  type: string;
+  packsizelabel: string;
+  composition1: string;
+  composition2: string;
+  mrp: number;
+  stockquantity: number;
+  purchaseprice: number;
+  sellingprice: number;
+  stockalertthreshold: number;
+  expirydate: string;
+  username: string;
+  insertdate: string;
+  updatedate: string;
+}
+
 export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
   if (!name.trim()) {
     throw new Error('Search term is required');
@@ -57,6 +75,29 @@ export const getManufacturerName = async (name: string): Promise<{ success: bool
   const response = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`);
   if (!response.ok) {
     throw new Error('Failed to fetch manufacturer data');
+  }
+
+  return response.json();
+};
+
+export const addInventory = async (item: InventoryItem): Promise<{ success: boolean; message: string }> => {
+  
+  const response = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(item), // Changed from payload to item
+  });
+
+  if (!response.ok) {
+    try {
+      const errorData = await response.json();
+      console.error("Backend Validation Error Details:", errorData);
+    } catch (e) {
+      console.error("Could not parse backend error body.");
+    }
+    throw new Error(`Failed to save inventory item: ${response.statusText}`);
   }
 
   return response.json();
