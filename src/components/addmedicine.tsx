@@ -35,24 +35,24 @@ export type Manufacturer = {
 
 export default function AddInventory() {
   const [quantity, setQuantity] = useState<number | string>(1);
-  const [alertthreshold, setalertthreshold] = useState<number | string>(6);
+  const [alertthreshold, setAlertThreshold] = useState<number | string>(6);
   const [medicineName, setMedicineName] = useState('');
   const [suggestions, setSuggestions] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
   const [composition1, setComposition1] = useState('');
   const [composition2, setComposition2] = useState('');
-  const [manufacturer, setmanufacturer] = useState('')
+  const [manufacturer, setManufacturer] = useState('')
   const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
-  const [packsize, setpacksize] = useState<number | string>(0);
+  const [packsize, setPackSize] = useState<number | string>(0);
   const [error, setError] = useState<string | null>(null);
   const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
   const [medicineType, setMedicineType] = useState<string | null>(""); // Sets Allopathy as default
   const [dosageForm, setDosageForm] = useState<string | null>('');
-const [isSubmitted, setIsSubmitted] = useState(false);
+const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [expiryDate, setExpiryDate] = useState<string>('');
 
   // Add validation for required fields
@@ -200,15 +200,16 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
   const handleMedicineSelect = (medicine: Medicine) => {
     setComposition1(medicine.composition1 || '');
     setComposition2(medicine.composition2 || '');
-    setmanufacturer(medicine.manufacturer_name || '');
-    setpacksize(medicine.pack_size_label || '');
+    setManufacturer(medicine.manufacturer_name || '');
+    setPackSize(medicine.pack_size_label || '');
+    if (medicine.type) setMedicineType(medicine.type);
     setLoading(false);
     setSuggestions([]);
   };
 
   // Handle manufacturer name change
   const handleManufacturerNameChange = (value: string) => {
-    setmanufacturer(value);
+    setManufacturer(value);
     if (!value.trim()) {
       setManufacturerSuggestions([]);
       setManufacturerLoading(false);
@@ -219,7 +220,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
 
   // Handle manufacturer selection from autocomplete
   const handleManufacturerSelect = (manufacturerName: string) => {
-    setmanufacturer(manufacturerName);
+    setManufacturer(manufacturerName);
     setManufacturerSuggestions([]);
     setManufacturerLoading(false);
   };
@@ -230,10 +231,10 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
     setMedicineName('');
     setComposition1('');
     setComposition2('');
-    setmanufacturer('');
+    setManufacturer('');
     setQuantity(1);
-    setalertthreshold(6);
-    setpacksize(0);
+    setAlertThreshold(6);
+    setPackSize(0);
     setPurchasePrice(0);
     setSellingPrice(0);
     setMrp(0);
@@ -402,7 +403,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
                 <NumberInput
                   label="Stock Alert Threshold(Months)"
                   value={alertthreshold}
-                  onChange={setalertthreshold}
+                  onChange={setAlertThreshold}
                   min={0}
                   max={60}
                   styles={inputStyles}
@@ -411,7 +412,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
                   label="Pack Size"
                   placeholder="e.g., 10 Tablets"
                   value={packsize}
-                  onChange={(event) => setpacksize(event.currentTarget.value)}
+                  onChange={(event) => setPackSize(event.currentTarget.value)}
                   styles={inputStyles}
                 />
               </Stack>
