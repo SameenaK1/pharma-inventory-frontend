@@ -42,7 +42,7 @@ const SORT_OPTIONS: { value: SortOption; label: string; description: string }[] 
 
 const NEW_STOCK_THRESHOLD_DAYS = 7;
 const EXPIRY_WARNING_DAYS = 60;
-const TABLE_COLUMN_COUNT = 9;
+const TABLE_COLUMN_COUNT = 8;
 const SKELETON_ROW_COUNT = 6;
 
 function mergeUniqueOptions(existing: string[], incoming: (string | null | undefined)[]): string[] {

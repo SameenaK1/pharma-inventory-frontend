@@ -20,8 +20,10 @@ html, body, #root {
   justify-content: flex-start;
 
   @media (max-width: 1024px) {
-    padding: 20px;
-    gap: 18px;
+    #center {
+     padding: 20px;
+     gap: 18px;
+   }
   }
 }
 

@@ -115,7 +115,7 @@ export interface InventoryListResponse {
   success: boolean;
   message?: string;
   error?: string;
-  data: InventoryRecord[];
+  data?: InventoryRecord[];
   pagination?: {
     page: number;
     limit: number;
