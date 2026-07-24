@@ -17,7 +17,7 @@ import {
     Alert,
     Radio,
     ScrollArea,
-    Pagination, Popover, ActionIcon, Menu, rem
+    Pagination, Popover, ActionIcon, Modal, Button,
 } from '@mantine/core';
 import {
     IconSearch,
@@ -27,9 +27,9 @@ import {
     IconAlertTriangle,
     IconArrowsSort,
     IconSparkles,
-    IconInbox, IconDotsVertical, IconEdit, IconTrash
+    IconInbox, IconEdit, IconTrash
 } from '@tabler/icons-react';
-import { getInventoryList, API_BASE_URL, type InventoryRecord } from '../services/api';
+import { getInventoryList, API_BASE_URL, deleteInventoryItem, type InventoryRecord } from '../services/api';
 
 
 type SortOption = 'insert_date' | 'expiry_date' | 'manufacturer_name';
@@ -79,10 +79,7 @@ const handleUpdateRecord = (record: InventoryRecord) => {
     // TODO: Open your edit modal or trigger edit form logic here
 };
 
-const handleDeleteRecord = (record: InventoryRecord) => {
-    console.log('Delete requested for record:', record.id, record.name);
-    // TODO: Connect your delete API call or open confirmation modal here
-};
+
 
 function renderStatusBadge(row: InventoryRecord) {
     if (row.stock_quantity === 0) {
@@ -204,6 +201,21 @@ export default function Inventory() {
         return rows;
     }, [records, sortOption]);
 
+    const [deleteRecord, setDeleteRecord] = useState<InventoryRecord | null>(null);
+
+    const handleDeleteRecord = async () => {
+        if (!deleteRecord) return;
+        try {
+            setError(null);
+            await deleteInventoryItem({ id: deleteRecord.id, user: 'Sameena', reason: 'Not required' });
+            setRecords((prev) => prev.filter((item) => item.id !== deleteRecord.id));
+            setTotalRecords((prev) => Math.max(0, prev - 1));
+            setDeleteRecord(null); // Close modal on success
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Delete failed');
+            setDeleteRecord(null);
+        }
+    };
     return (
         <Container fluid px={0} py="md">
             <Stack gap={4} mb="lg">
@@ -438,29 +450,14 @@ export default function Inventory() {
                                                 </Table.Td>
                                                 <Table.Td>{renderStatusBadge(row)}</Table.Td>
                                                 <Table.Td>
-                                                    <Group justify="center">
-                                                        <Menu position="bottom-end" shadow="sm" transitionProps={{ transition: 'pop' }} withArrow>
-                                                            <Menu.Target>
-                                                                <ActionIcon variant="subtle" color="gray" size="sm">
-                                                                    <IconDotsVertical size={16} />
-                                                                </ActionIcon>
-                                                            </Menu.Target>
-                                                            <Menu.Dropdown>
-                                                                <Menu.Item
-                                                                    leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
-                                                                    onClick={() => handleUpdateRecord(row)}
-                                                                >
-                                                                    Edit Item
-                                                                </Menu.Item>
-                                                                <Menu.Item
-                                                                    color="red"
-                                                                    leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
-                                                                    onClick={() => handleDeleteRecord(row)}
-                                                                >
-                                                                    Delete Item
-                                                                </Menu.Item>
-                                                            </Menu.Dropdown>
-                                                        </Menu>
+                                                    <Group justify="center" gap={4} wrap="nowrap">
+                                                        <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => handleUpdateRecord(row)}>
+                                                            <IconEdit style={{ width: 16, height: 16 }} />
+                                                        </ActionIcon>
+
+                                                        <ActionIcon variant="subtle" color="red" size="sm" onClick={() => setDeleteRecord(row)}>
+                                                            <IconTrash style={{ width: 16, height: 16 }} />
+                                                        </ActionIcon>
                                                     </Group>
                                                 </Table.Td>
                                             </Table.Tr>
@@ -486,63 +483,23 @@ export default function Inventory() {
 
 
             </Grid>
+
+            <Modal
+                opened={!!deleteRecord}
+                onClose={() => setDeleteRecord(null)}
+                title={<Text fw={700} color="red.7">Warning: Permanent Action</Text>}
+                yOffset="4rem" // Pulls it directly to the upper center area of the screen
+                centered={false}
+                overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+            >
+                <Text size="sm" mb="lg">
+                    Are you sure you want to delete <strong>{deleteRecord?.name}</strong>?
+                </Text>
+                <Group justify="flex-end" gap="sm">
+                    <Button variant="light" color="gray" size="xs" onClick={() => setDeleteRecord(null)}>Cancel</Button>
+                    <Button variant="filled" color="red" size="xs" onClick={handleDeleteRecord}>Yes, Delete</Button>
+                </Group>
+            </Modal>
         </Container>
     );
 }
-//    {/* Right control sidebar: order by */}
-//         <Grid.Col span={{ base: 12, lg: 4 }}>
-//           <Paper withBorder radius="md" p="md" shadow="xs" style={{ position: 'sticky', top: 16 }}>
-//             <Group gap={6} mb="md">
-//               <IconArrowsSort size={18} />
-//               <Title order={4}>Order By</Title>
-//             </Group>
-
-//             <Radio.Group value={sortOption} onChange={(value) => setSortOption(value as SortOption)}>
-//               <Stack gap="xs">
-//                 {SORT_OPTIONS.map((option) => (
-//                   <Paper
-//                     key={option.value}
-//                     withBorder
-//                     radius="sm"
-//                     p="sm"
-//                     style={{
-//                       borderColor: sortOption === option.value ? 'var(--mantine-color-blue-5)' : undefined,
-//                       backgroundColor: sortOption === option.value ? 'var(--mantine-color-blue-0)' : undefined,
-//                       cursor: 'pointer',
-//                     }}
-//                     onClick={() => setSortOption(option.value)}
-//                   >
-//                     <Radio
-//                       value={option.value}
-//                       label={
-//                         <Stack gap={0}>
-//                           <Text size="sm" fw={600}>
-//                             {option.label}
-//                           </Text>
-//                           <Text size="xs" c="dimmed">
-//                             {option.description}
-//                           </Text>
-//                         </Stack>
-//                       }
-//                     />
-//                   </Paper>
-//                 ))}
-
-//                 {/* Reserved slot for additional sort properties to be discussed */}
-//                 <Paper withBorder radius="sm" p="sm" style={{ opacity: 0.55, cursor: 'not-allowed' }}>
-//                   <Group gap="xs" wrap="nowrap">
-//                     <IconSparkles size={16} />
-//                     <Stack gap={0}>
-//                       <Text size="sm" fw={600}>
-//                         More options
-//                       </Text>
-//                       <Text size="xs" c="dimmed">
-//                         Additional sort properties coming soon
-//                       </Text>
-//                     </Stack>
-//                   </Group>
-//                 </Paper>
-//               </Stack>
-//             </Radio.Group>
-//           </Paper>
-//         </Grid.Col>

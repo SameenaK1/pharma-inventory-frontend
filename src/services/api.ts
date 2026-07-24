@@ -169,3 +169,13 @@ export const addInventory = async (item: InventoryItem): Promise<{ success: bool
 
   return response.json();
 };
+
+export const deleteInventoryItem = async ({ id, ...params }: { id: number | string; user: string; reason: string }): Promise<void> => {
+  const query = new URLSearchParams(params).toString();
+  const response = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, { method: 'DELETE' });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body?.error || body?.message || 'Failed to delete inventory item');
+  }
+};
