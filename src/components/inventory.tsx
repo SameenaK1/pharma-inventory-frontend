@@ -1,6 +1,6 @@
 // components/inventory.tsx
 import { useEffect, useMemo, useState } from 'react';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
     Container,
     Grid,
@@ -17,7 +17,7 @@ import {
     Alert,
     Radio,
     ScrollArea,
-    Pagination,
+    Pagination, Popover, ActionIcon, Menu, rem
 } from '@mantine/core';
 import {
     IconSearch,
@@ -27,9 +27,10 @@ import {
     IconAlertTriangle,
     IconArrowsSort,
     IconSparkles,
-    IconInbox,
+    IconInbox, IconDotsVertical, IconEdit, IconTrash
 } from '@tabler/icons-react';
 import { getInventoryList, API_BASE_URL, type InventoryRecord } from '../services/api';
+
 
 type SortOption = 'insert_date' | 'expiry_date' | 'manufacturer_name';
 
@@ -41,7 +42,7 @@ const SORT_OPTIONS: { value: SortOption; label: string; description: string }[] 
 
 const NEW_STOCK_THRESHOLD_DAYS = 7;
 const EXPIRY_WARNING_DAYS = 60;
-const TABLE_COLUMN_COUNT = 8;
+const TABLE_COLUMN_COUNT = 9;
 const SKELETON_ROW_COUNT = 6;
 
 function mergeUniqueOptions(existing: string[], incoming: (string | null | undefined)[]): string[] {
@@ -73,6 +74,15 @@ function isNewestStock(insertDateStr: string): boolean {
     const diffDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
     return diffDays >= 0 && diffDays <= NEW_STOCK_THRESHOLD_DAYS;
 }
+const handleUpdateRecord = (record: InventoryRecord) => {
+    console.log('Update requested for record:', record.id, record.name);
+    // TODO: Open your edit modal or trigger edit form logic here
+};
+
+const handleDeleteRecord = (record: InventoryRecord) => {
+    console.log('Delete requested for record:', record.id, record.name);
+    // TODO: Connect your delete API call or open confirmation modal here
+};
 
 function renderStatusBadge(row: InventoryRecord) {
     if (row.stock_quantity === 0) {
@@ -122,6 +132,11 @@ export default function Inventory() {
 
     const [debouncedSearch] = useDebouncedValue(searchTerm, 350);
 
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setActivePage(1);
+    }, [searchTerm, typeFilter, comp1Filter]);
+    const [popoverOpened, { toggle, close }] = useDisclosure(false);
     // Fetch live inventory data whenever filters, sort, or page changes (runs on mount too).
     useEffect(() => {
         let ignore = false;
@@ -199,35 +214,136 @@ export default function Inventory() {
             </Stack>
 
             <Grid gap="lg" align="flex-start">
-                {/* Left data zone: filters + table */}
-                <Grid.Col span={{ base: 12, lg: 12 }}>
+                <Grid.Col span={12}>
+                    {/* Filters & Dynamic Popover Sorting Panel */}
                     <Paper withBorder radius="md" p="md" shadow="xs" mb="md">
-                        <Group grow align="flex-end" gap="md">
-                            <TextInput
-                                label="Medicine Name"
-                                placeholder="Search by name..."
-                                leftSection={<IconSearch size={16} />}
-                                value={searchTerm}
-                                onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                            />
-                            <Select
-                                label="Type"
-                                placeholder="All types"
-                                data={typeOptions}
-                                value={typeFilter}
-                                onChange={setTypeFilter}
-                                leftSection={<IconCategory size={16} />}
-                                clearable
-                            />
-                            <Select
-                                label="Compound 1"
-                                placeholder="All compounds"
-                                data={comp1Options}
-                                value={comp1Filter}
-                                onChange={setComp1Filter}
-                                leftSection={<IconFlask size={16} />}
-                                clearable
-                            />
+                        <Group align="flex-end" gap="md" style={{ width: '100%', flexWrap: 'nowrap' }}>
+                            <Group grow style={{ flex: 1 }} align="flex-end" gap="md">
+                                <TextInput
+                                    label="Medicine Name"
+                                    placeholder="Search by name..."
+                                    leftSection={<IconSearch size={16} />}
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                                />
+                                <Select
+                                    label="Type"
+                                    placeholder="All types"
+                                    data={typeOptions}
+                                    value={typeFilter}
+                                    onChange={setTypeFilter}
+                                    leftSection={<IconCategory size={16} />}
+                                    clearable
+                                />
+                                <Select
+                                    label="Compound 1"
+                                    placeholder="All compounds"
+                                    data={comp1Options}
+                                    value={comp1Filter}
+                                    onChange={setComp1Filter}
+                                    leftSection={<IconFlask size={16} />}
+                                    clearable
+                                />
+                            </Group>
+
+                            {/* Sort Actions Popover */}
+                            <Popover
+                                opened={popoverOpened}
+                                onChange={toggle}
+                                position="bottom-end"
+                                withArrow
+                                shadow="md"
+                                width={320}
+                            >
+                                <Popover.Target>
+                                    <div
+                                        style={{
+                                            marginTop: 22,
+                                            height: 36,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={toggle}
+                                    >
+                                        <ActionIcon
+                                            variant={popoverOpened ? 'filled' : 'light'}
+                                            color="blue"
+                                            h={36}
+                                            w="auto"
+                                            px="md"
+                                            title="Sort Options"
+                                            style={{ gap: 8 }}
+                                        >
+                                            <IconArrowsSort size={16} />
+                                            <Text size="sm" fw={500} span>Order By</Text>
+                                        </ActionIcon>
+                                    </div>
+                                </Popover.Target>
+
+                                <Popover.Dropdown p="md">
+                                    <Group gap={6} mb="md">
+
+
+                                    </Group>
+
+                                    <Radio.Group
+                                        value={sortOption}
+                                        onChange={(value) => {
+                                            setSortOption(value as SortOption);
+                                            close();
+                                        }}
+                                    >
+                                        <Stack gap="xs">
+                                            {SORT_OPTIONS.map((option) => (
+                                                <Paper
+                                                    key={option.value}
+                                                    withBorder
+                                                    radius="sm"
+                                                    p="sm"
+                                                    style={{
+                                                        borderColor: sortOption === option.value ? 'var(--mantine-color-blue-5)' : undefined,
+                                                        backgroundColor: sortOption === option.value ? 'var(--mantine-color-blue-0)' : undefined,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                    onClick={() => {
+                                                        setSortOption(option.value);
+                                                        close();
+                                                    }}
+                                                >
+                                                    <Radio
+                                                        value={option.value}
+                                                        label={
+                                                            <Stack gap={0}>
+                                                                <Text size="sm" fw={600}>
+                                                                    {option.label}
+                                                                </Text>
+                                                                <Text size="xs" c="dimmed">
+                                                                    {option.description}
+                                                                </Text>
+                                                            </Stack>
+                                                        }
+                                                    />
+                                                </Paper>
+                                            ))}
+
+                                            <Paper withBorder radius="sm" p="sm" style={{ opacity: 0.55, cursor: 'not-allowed' }}>
+                                                <Group gap="xs" wrap="nowrap">
+                                                    <IconSparkles size={16} />
+                                                    <Stack gap={0}>
+                                                        <Text size="sm" fw={600}>
+                                                            More options
+                                                        </Text>
+                                                        <Text size="xs" c="dimmed">
+                                                            Additional sort properties coming soon
+                                                        </Text>
+                                                    </Stack>
+                                                </Group>
+                                            </Paper>
+                                        </Stack>
+                                    </Radio.Group>
+                                </Popover.Dropdown>
+                            </Popover>
                         </Group>
                     </Paper>
 
@@ -263,6 +379,7 @@ export default function Inventory() {
                                         <Table.Th ta="right">Quantity</Table.Th>
                                         <Table.Th>Expiry Date</Table.Th>
                                         <Table.Th>Status</Table.Th>
+                                        <Table.Th ta="center">Actions</Table.Th>
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
@@ -296,7 +413,7 @@ export default function Inventory() {
                                             <Table.Tr key={row.id}>
                                                 <Table.Td>
 
-                                                 <b>   {row.name}</b>
+                                                    <b>   {row.name}</b>
                                                     <br></br>
 
 
@@ -305,7 +422,7 @@ export default function Inventory() {
 
                                                 </Table.Td>
                                                 <Table.Td>{row.manufacturer_name}</Table.Td>
-                                               
+
                                                 <Table.Td>{row.composition1 || '—'}</Table.Td>
                                                 <Table.Td>{row.composition2 || '—'}</Table.Td>
                                                 <Table.Td ta="right">{row.stock_quantity}</Table.Td>
@@ -314,12 +431,38 @@ export default function Inventory() {
                                                         {isExpiringSoon(row.expiry_date) && (
                                                             <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
                                                         )}
-                                                      
-                                                            {formatExpiryDate(row.expiry_date)}
-                                                      
+
+                                                        {formatExpiryDate(row.expiry_date)}
+
                                                     </Group>
                                                 </Table.Td>
                                                 <Table.Td>{renderStatusBadge(row)}</Table.Td>
+                                                <Table.Td>
+                                                    <Group justify="center">
+                                                        <Menu position="bottom-end" shadow="sm" transitionProps={{ transition: 'pop' }} withArrow>
+                                                            <Menu.Target>
+                                                                <ActionIcon variant="subtle" color="gray" size="sm">
+                                                                    <IconDotsVertical size={16} />
+                                                                </ActionIcon>
+                                                            </Menu.Target>
+                                                            <Menu.Dropdown>
+                                                                <Menu.Item
+                                                                    leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
+                                                                    onClick={() => handleUpdateRecord(row)}
+                                                                >
+                                                                    Edit Item
+                                                                </Menu.Item>
+                                                                <Menu.Item
+                                                                    color="red"
+                                                                    leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                                                                    onClick={() => handleDeleteRecord(row)}
+                                                                >
+                                                                    Delete Item
+                                                                </Menu.Item>
+                                                            </Menu.Dropdown>
+                                                        </Menu>
+                                                    </Group>
+                                                </Table.Td>
                                             </Table.Tr>
                                         ))}
                                 </Table.Tbody>
