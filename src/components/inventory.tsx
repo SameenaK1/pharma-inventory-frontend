@@ -27,10 +27,10 @@ import {
     IconAlertTriangle,
     IconArrowsSort,
     IconSparkles,
-    IconInbox, IconEdit, IconTrash
+    IconInbox, IconEdit, IconTrash, IconPlus, IconListDetails
 } from '@tabler/icons-react';
 import { getInventoryList, API_BASE_URL, deleteInventoryItem, type InventoryRecord } from '../services/api';
-
+import AddInventory from './addinventory';
 
 type SortOption = 'insert_date' | 'expiry_date' | 'manufacturer_name';
 
@@ -74,10 +74,7 @@ function isNewestStock(insertDateStr: string): boolean {
     const diffDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
     return diffDays >= 0 && diffDays <= NEW_STOCK_THRESHOLD_DAYS;
 }
-const handleUpdateRecord = (record: InventoryRecord) => {
-    console.log('Update requested for record:', record.id, record.name);
-    // TODO: Open your edit modal or trigger edit form logic here
-};
+
 
 
 
@@ -111,11 +108,13 @@ function renderStatusBadge(row: InventoryRecord) {
 }
 
 export default function Inventory() {
+  
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<string | null>(null);
     const [comp1Filter, setComp1Filter] = useState<string | null>(null);
     const [sortOption, setSortOption] = useState<SortOption>('insert_date');
     const [activePage, setActivePage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
 
     const [typeOptions, setTypeOptions] = useState<string[]>([]);
@@ -125,14 +124,26 @@ export default function Inventory() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const totalPages = Math.ceil(totalRecords / 50);
+    const totalPages = Math.ceil(totalRecords / pageSize);
 
     const [debouncedSearch] = useDebouncedValue(searchTerm, 350);
+const [modalOpen, setModalOpen] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-    // Reset page to 1 when filters change
+  const handleUpdateRecord = (row: any) => {
+    setSelectedMedicine(row); // Save clicked row data
+    setModalOpen(true);       // Launch popup
+  };
+
+  const handleAddNew = () => {
+    setSelectedMedicine(null); // No initial data => modal renders in "add" mode
+    setModalOpen(true);
+  };
+    // Reset page to 1 when filters or page size change
     useEffect(() => {
         setActivePage(1);
-    }, [searchTerm, typeFilter, comp1Filter]);
+    }, [searchTerm, typeFilter, comp1Filter, pageSize]);
     const [popoverOpened, { toggle, close }] = useDisclosure(false);
     // Fetch live inventory data whenever filters, sort, or page changes (runs on mount too).
     useEffect(() => {
@@ -148,7 +159,7 @@ export default function Inventory() {
                     composition1: comp1Filter ?? undefined,
                     sortBy: sortOption,
                     page: activePage,
-                    limit: 50,
+                    limit: pageSize,
                 });
 
                 if (ignore) return;
@@ -177,7 +188,7 @@ export default function Inventory() {
         return () => {
             ignore = true;
         };
-    }, [debouncedSearch, typeFilter, comp1Filter, sortOption, activePage]);
+    }, [debouncedSearch, typeFilter, comp1Filter, sortOption, activePage, pageSize, refreshKey]);
 
     // The backend only supports server-side sorting for name/manufacturer_name/type/composition columns,
     // so "Newest Stock" and "Expiry Date" are guaranteed client-side to keep the UX correct.
@@ -233,33 +244,12 @@ export default function Inventory() {
                             <Group grow style={{ flex: 1 }} align="flex-end" gap="md">
                                 <TextInput
                                     label="Medicine Name"
-                                    placeholder="Search by name..."
+                                    placeholder="Search by medicine..."
                                     leftSection={<IconSearch size={16} />}
                                     value={searchTerm}
                                     onChange={(event) => setSearchTerm(event.currentTarget.value)}
                                 />
-                                <Select
-                                    label="Type"
-                                    placeholder="All types"
-                                    data={typeOptions}
-                                    value={typeFilter}
-                                    onChange={setTypeFilter}
-                                    leftSection={<IconCategory size={16} />}
-                                    clearable
-                                />
-                                <Select
-                                    label="Compound 1"
-                                    placeholder="All compounds"
-                                    data={comp1Options}
-                                    value={comp1Filter}
-                                    onChange={setComp1Filter}
-                                    leftSection={<IconFlask size={16} />}
-                                    clearable
-                                />
-                            </Group>
-
-                            {/* Sort Actions Popover */}
-                            <Popover
+                              <Popover
                                 opened={popoverOpened}
                                 onChange={toggle}
                                 position="bottom-end"
@@ -356,6 +346,19 @@ export default function Inventory() {
                                     </Radio.Group>
                                 </Popover.Dropdown>
                             </Popover>
+                            </Group>
+
+                            {/* Add New Inventory */}
+                            <Button
+                                leftSection={<IconPlus size={16} />}
+                                variant="filled"
+                                color="blue"
+                                h={36}
+                                mt={22}
+                                onClick={handleAddNew}
+                            >
+                                Add Inventory
+                            </Button>
                         </Group>
                     </Paper>
 
@@ -466,8 +469,18 @@ export default function Inventory() {
                             </Table>
                         </ScrollArea>
 
-                        {totalPages > 1 && (
-                            <Group justify="center" mt="md">
+                        <Group justify="space-between" mt="md">
+                            <Select
+                                value={String(pageSize)}
+                                onChange={(value) => setPageSize(Number(value) || 10)}
+                                data={['5', '10', '20', '50']}
+                                leftSection={<IconListDetails size={16} />}
+                                w={90}
+                                size="sm"
+                                radius="md"
+                                allowDeselect={false}
+                            />
+                            {totalPages > 1 && (
                                 <Pagination
                                     total={totalPages}
                                     value={activePage}
@@ -476,8 +489,8 @@ export default function Inventory() {
                                     boundaries={1}
                                     siblings={1}
                                 />
-                            </Group>
-                        )}
+                            )}
+                        </Group>
                     </Paper>
                 </Grid.Col>
 
@@ -488,7 +501,7 @@ export default function Inventory() {
                 opened={!!deleteRecord}
                 onClose={() => setDeleteRecord(null)}
                 title={<Text fw={700} color="red.7">Warning: Permanent Action</Text>}
-                yOffset="4rem" // Pulls it directly to the upper center area of the screen
+                
                 centered={false}
                 overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
             >
@@ -500,6 +513,16 @@ export default function Inventory() {
                     <Button variant="filled" color="red" size="xs" onClick={handleDeleteRecord}>Yes, Delete</Button>
                 </Group>
             </Modal>
+          <AddInventory 
+        opened={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        initialData={selectedMedicine}
+        onSuccess={() => {
+          setModalOpen(false);
+          setSelectedMedicine(null);
+          setRefreshKey((key) => key + 1);
+        }}
+      />
         </Container>
     );
 }
