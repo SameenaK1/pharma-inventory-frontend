@@ -110,15 +110,10 @@ function renderStatusBadge(row: InventoryRecord) {
 export default function Inventory() {
   
     const [searchTerm, setSearchTerm] = useState('');
-    const [typeFilter, setTypeFilter] = useState<string | null>(null);
-    const [comp1Filter, setComp1Filter] = useState<string | null>(null);
     const [sortOption, setSortOption] = useState<SortOption>('insert_date');
     const [activePage, setActivePage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(50);
     const [totalRecords, setTotalRecords] = useState(0);
-
-    const [typeOptions, setTypeOptions] = useState<string[]>([]);
-    const [comp1Options, setComp1Options] = useState<string[]>([]);
 
     const [records, setRecords] = useState<InventoryRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -143,7 +138,7 @@ const [modalOpen, setModalOpen] = useState(false);
     // Reset page to 1 when filters or page size change
     useEffect(() => {
         setActivePage(1);
-    }, [searchTerm, typeFilter, comp1Filter, pageSize]);
+    }, [searchTerm,  pageSize]);
     const [popoverOpened, { toggle, close }] = useDisclosure(false);
     // Fetch live inventory data whenever filters, sort, or page changes (runs on mount too).
     useEffect(() => {
@@ -155,8 +150,6 @@ const [modalOpen, setModalOpen] = useState(false);
             try {
                 const response = await getInventoryList({
                     name: debouncedSearch.trim() || undefined,
-                    type: typeFilter ?? undefined,
-                    composition1: comp1Filter ?? undefined,
                     sortBy: sortOption,
                     page: activePage,
                     limit: pageSize,
@@ -168,8 +161,6 @@ const [modalOpen, setModalOpen] = useState(false);
                 const total = response.pagination?.total || 0;
                 setRecords(rows);
                 setTotalRecords(total);
-                setTypeOptions((prev) => mergeUniqueOptions(prev, rows.map((r) => r.type)));
-                setComp1Options((prev) => mergeUniqueOptions(prev, rows.map((r) => r.composition1)));
             } catch (err) {
                 if (ignore) return;
                 setError(
@@ -188,7 +179,7 @@ const [modalOpen, setModalOpen] = useState(false);
         return () => {
             ignore = true;
         };
-    }, [debouncedSearch, typeFilter, comp1Filter, sortOption, activePage, pageSize, refreshKey]);
+    }, [debouncedSearch, sortOption, activePage, pageSize, refreshKey]);
 
     // The backend only supports server-side sorting for name/manufacturer_name/type/composition columns,
     // so "Newest Stock" and "Expiry Date" are guaranteed client-side to keep the UX correct.

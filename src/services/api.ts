@@ -138,7 +138,17 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
 
   // The backend returns a structured JSON body for both success (200) and "no matches" (404) cases,
   // so only genuine server failures (5xx) should be treated as thrown errors.
-  const body: InventoryListResponse = await response.json();
+   const body: InventoryListResponse = await response
+     .json()
+     .catch(() => ({} as InventoryListResponse));
+   if (!response.ok && response.status !== 404) {
+     throw new Error(
+       body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
+     );
+   }
+   if (!response.ok && response.status !== 404) {
+     throw new Error(body?.error || body?.message || 'Failed to fetch inventory data');
+   }
 
   if (!response.ok && response.status !== 404) {
     throw new Error(body?.error || body?.message || 'Failed to fetch inventory data');

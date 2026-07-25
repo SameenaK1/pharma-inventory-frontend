@@ -6,7 +6,6 @@ import {
   Box, 
   TextInput, 
   NumberInput, 
-  Select, 
   Autocomplete, 
   Text, 
   Group, 
@@ -48,7 +47,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
   const [medicineType, setMedicineType] = useState<string | null>("Allopathy"); 
-  const [dosageForm, setDosageForm] = useState<string | null>('');
   const [expiryDate, setExpiryDate] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -71,7 +69,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
   useEffect(() => {
     if (opened) {
       if (initialData) {
-        console.log('Populating form with initial data:', initialData);
         setMedicineName(initialData.name || '');
         setManufacturer(initialData.manufacturername || initialData.manufacturer_name || '');
         setMedicineType(initialData.type || 'Allopathy');
@@ -84,7 +81,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
         setSellingPrice(initialData.selling_price || 0);
         setAlertThreshold(initialData.stock_alert_threshold || 6);
         setExpiryDate(initialData.expiry_date ? new Date(initialData.expiry_date).toISOString().split('T')[0] : '');
-        setDosageForm(initialData.dosageForm || '');
         setOriginalIdentity({
           name: initialData.name || '',
           manufacturer: initialData.manufacturername || initialData.manufacturer_name || '',
@@ -186,7 +182,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
     setMrp(0);
     setExpiryDate('');
     setMedicineType('Allopathy');
-    setDosageForm('');
     setIsSubmitted(false);
   };
 
@@ -203,7 +198,7 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
         borderColor: '#228be6',
         boxShadow: '0 0 0 3px rgba(34, 138, 230, 0.1)'
       },
-      '&:disabled, &[data-disabled], &:read-only, &[readonly]': {
+      '&:disabled, &:readOnly, &[readonly]': {
         color: '#1e293b',
         opacity: 1,
         WebkitTextFillColor: '#1e293b',
