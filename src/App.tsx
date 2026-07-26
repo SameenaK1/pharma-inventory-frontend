@@ -1,6 +1,5 @@
-import React from 'react';
 import { MantineProvider } from '@mantine/core';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router';
 import { Container, Group } from '@mantine/core';
 import Header from './components/header';
 import Sidebar from './components/sidebar';

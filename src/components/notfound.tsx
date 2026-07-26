@@ -1,11 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { 
-  Box, 
   Text, 
   Title, 
   Button, 
   Card,
-  Group,
   Stack
 } from '@mantine/core';
 

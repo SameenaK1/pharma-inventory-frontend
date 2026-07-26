@@ -1,11 +1,8 @@
-import React from 'react';
-import { Pill, Search, Bell, MapPin } from 'lucide-react';
+import { Pill, Search } from 'lucide-react';
 import { 
   TextInput, 
-  ActionIcon, 
   Group, 
   Avatar, 
-  Badge, 
   Box, 
   Container,
   Text
