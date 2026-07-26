@@ -1,8 +1,8 @@
 // components/Sidebar.tsx
-import React, { useState } from 'react';
-import { Stack, NavLink, ActionIcon, Tooltip, Card, Group, Text } from '@mantine/core';
+import { useState } from 'react';
+import { Stack, NavLink, ActionIcon, Tooltip, Card} from '@mantine/core';
 import { LayoutDashboard, Pill, Boxes, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);

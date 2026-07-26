@@ -21,8 +21,6 @@ import {
 } from '@mantine/core';
 import {
     IconSearch,
-    IconCategory,
-    IconFlask,
     IconAlertCircle,
     IconAlertTriangle,
     IconArrowsSort,
@@ -44,14 +42,6 @@ const NEW_STOCK_THRESHOLD_DAYS = 7;
 const EXPIRY_WARNING_DAYS = 60;
 const TABLE_COLUMN_COUNT = 8;
 const SKELETON_ROW_COUNT = 6;
-
-function mergeUniqueOptions(existing: string[], incoming: (string | null | undefined)[]): string[] {
-    const merged = new Set(existing);
-    incoming.forEach((value) => {
-        if (value && value.trim()) merged.add(value);
-    });
-    return Array.from(merged).sort((a, b) => a.localeCompare(b));
-}
 
 function formatExpiryDate(dateStr: string | null): string {
     if (!dateStr) return '—';

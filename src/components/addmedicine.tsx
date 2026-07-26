@@ -1,6 +1,4 @@
-// components/AddInventory.tsx
 import { useState, useCallback } from 'react';
-// Make sure to import the CSS file if you haven't in your app's root (e.g., main.tsx or _app.tsx)
 import '@mantine/dates/styles.css';
 import { notifications } from '@mantine/notifications';
 import { Check, AlertTriangle } from 'lucide-react'; // Optional: for clean status icons
@@ -46,7 +44,7 @@ export default function AddInventory() {
   const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
   const [packsize, setPackSize] = useState<number | string>(0);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
@@ -103,7 +101,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
       updatedate: "2026-07-21"
     };
 
-    const response = await addInventory(item);
+    await addInventory(item);
     
     notifications.show({
       title: 'Success!',
