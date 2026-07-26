@@ -102,6 +102,7 @@ export interface InventoryRecord {
 
 export interface InventoryListParams {
   name?: string;
+  search?: string;
   manufacturer_name?: string;
   type?: string;
   composition1?: string;
@@ -128,30 +129,28 @@ export interface InventoryListResponse {
 
 export const getInventoryList = async (params: InventoryListParams = {}): Promise<InventoryListResponse> => {
   const query = new URLSearchParams();
+
+  // 1. Map parameters to query string
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       query.set(key, String(value));
     }
   });
 
+  // FIXED: Moved log below the loop and used .toString() so you can actually see the query payload
+  console.log("Fetching inventory list with params:", query.toString()); 
+
   const response = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`);
 
-  // The backend returns a structured JSON body for both success (200) and "no matches" (404) cases,
-  // so only genuine server failures (5xx) should be treated as thrown errors.
-   const body: InventoryListResponse = await response
-     .json()
-     .catch(() => ({} as InventoryListResponse));
-   if (!response.ok && response.status !== 404) {
-     throw new Error(
-       body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
-     );
-   }
-   if (!response.ok && response.status !== 404) {
-     throw new Error(body?.error || body?.message || 'Failed to fetch inventory data');
-   }
+  const body: InventoryListResponse = await response
+    .json()
+    .catch(() => ({} as InventoryListResponse));
 
+  // FIXED: Cleaned up the triple-duplicated error check blocks
   if (!response.ok && response.status !== 404) {
-    throw new Error(body?.error || body?.message || 'Failed to fetch inventory data');
+    throw new Error(
+      body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
+    );
   }
 
   return body;
