@@ -1,7 +1,7 @@
 // components/Sidebar.tsx
 import React, { useState } from 'react';
 import { Stack, NavLink, ActionIcon, Tooltip, Card, Group, Text } from '@mantine/core';
-import { LayoutDashboard, Pill, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Pill, Boxes, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Sidebar() {
@@ -10,7 +10,8 @@ export default function Sidebar() {
 
   const linksData = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} />, path: '/' },
-   { id: 'inventory', label: 'Inventory', icon: <Pill size={19} />, path: '/addmedicine' },
+    { id: 'inventory', label: 'Inventory', icon: <Boxes size={19} />, path: '/inventory' },
+    { id: 'addmedicine', label: 'Add Medicine', icon: <Pill size={19} />, path: '/addmedicine' },
     { id: 'sales', label: 'Sales Logs', icon: <ShoppingCart size={19} />, path: '/sales' },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={19} />, path: '/analytics' },
     { id: 'settings', label: 'Settings', icon: <Settings size={19} />, path: '/settings' },

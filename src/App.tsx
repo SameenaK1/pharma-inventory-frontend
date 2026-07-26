@@ -6,12 +6,15 @@ import Header from './components/header';
 import Sidebar from './components/sidebar';
 import Dashboard from './components/dashboard';
 import AddInventory from './components/addmedicine';
+import Inventory from './components/inventory';
 import NotFoundPage from './components/notfound';
 
 export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
-      <Container size="xl" px="lg" style={{ backgroundColor: '#f1f5f9', minHeight: '100vh', color: '#334155' }}>
+      <Container fluid 
+        px="xl" style={{ backgroundColor: '#f1f5f9', minHeight: '100vh', color: '#334155',width: '100%',
+          maxWidth: '100%' }}>
         <Header />
         
         <Group gap="32px" mt="32px" align="flex-start">
@@ -25,7 +28,10 @@ export default function App() {
               {/* Home Route: loads Dashboard */}
               <Route path="/" element={<Dashboard />} />
               
-              {/* Inventory Route: loads AddInventory */}
+              {/* Inventory Route: loads the full inventory list/search page */}
+              <Route path="/inventory" element={<Inventory />} />
+
+              {/* Add Medicine Route: loads AddInventory form */}
               <Route path="/addmedicine" element={<AddInventory />} />
               
               {/* 404 Route: displays the not found page */}
