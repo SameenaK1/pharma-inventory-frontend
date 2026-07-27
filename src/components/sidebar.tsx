@@ -1,6 +1,5 @@
-// components/Sidebar.tsx
 import { useState } from 'react';
-import { Stack, NavLink, ActionIcon, Tooltip, Card} from '@mantine/core';
+import { Stack, NavLink, ActionIcon, Tooltip, Box, Group, Title } from '@mantine/core';
 import { LayoutDashboard, Pill, Boxes, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
@@ -18,40 +17,44 @@ export default function Sidebar() {
   ];
 
   return (
-    <Card 
-      w={isOpen ? 260 : 80} 
-      p="md" 
-      radius="md"
-      withBorder
-      shadow="sm"
-      style={{ 
+    <Box
+      component="aside"
+      w={isOpen ? 260 : 80}
+      h="100vh"
+      p="md"
+      bg="white"
+      style={{
+        borderRight: '1px solid var(--mantine-color-gray-3)',
         transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
-        position: 'relative'
+        flexShrink: 0,
       }}
     >
-      <ActionIcon 
-        variant="light" 
-        color="blue" 
-        radius="xl" 
-        size="md"
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          position: 'absolute',
-          top: '20px',
-          right: isOpen ? '16px' : 'calc(50% - 14px)',
-          transition: 'all 0.3s ease',
-          zIndex: 10
-        }}
-      >
-        {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-      </ActionIcon>
+      {/* Top Brand Block & Toggle Action Trigger */}
+      <Group justify={isOpen ? 'space-between' : 'center'} mb="xl" h={40}>
+        {isOpen && (
+          <Group gap="xs">
+            <Pill size={24} color="blue" style={{ border: 'none' }} />
+            <Title order={4} c="dark.4">
+              <span style={{ color: 'var(--mantine-color-blue-filled)' }}>Pharma</span>Track
+            </Title>
+          </Group>
+        )}
+        
+        <ActionIcon
+          variant="light"
+          color="blue"
+          radius="xl"
+          size="md"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {isOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+        </ActionIcon>
+      </Group>
 
-      {!isOpen && <div style={{ height: '12px' }} />}
-
-      <Stack gap="xs" mt={!isOpen ? '28px' : 0}>
+      {/* Navigation Stack Layout */}
+      <Stack gap="xs" style={{ flexGrow: 1 }}>
         {linksData.map((item) => {
           const isActive = location.pathname === item.path;
 
@@ -65,16 +68,19 @@ export default function Sidebar() {
               active={isActive}
               color="blue"
               variant="light"
-              style={{ 
-                borderRadius: '10px',
-                height: '46px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: !isOpen ? 'center' : 'flex-start',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#2563eb' : '#475569',
-                transition: 'all 0.2s ease',
-                padding: !isOpen ? '0' : '0 12px',
+              h={46}
+              styles={{
+                root: {
+                  borderRadius: 'var(--mantine-radius-md)',
+                  fontWeight: isActive ? 600 : 500,
+                  transition: 'all 0.2s ease',
+                  padding: !isOpen ? '0' : '0 12px',
+                  justifyContent: !isOpen ? 'center' : 'flex-start',
+                },
+                body: {
+                  // Prevents text rendering bugs during dynamic width transition
+                  display: isOpen ? 'block' : 'none', 
+                }
               }}
             />
           );
@@ -82,12 +88,19 @@ export default function Sidebar() {
           return isOpen ? (
             navLinkEl
           ) : (
-            <Tooltip key={item.id} label={item.label} position="right" withArrow transitionProps={{ duration: 150 }}>
-              <div>{navLinkEl}</div>
+            <Tooltip
+              key={item.id}
+              label={item.label}
+              position="right"
+              withArrow
+              transitionProps={{ duration: 150 }}
+            >
+              {/* Box wrapper provides clear anchor context for tooltip target positioning */}
+              <Box>{navLinkEl}</Box>
             </Tooltip>
           );
         })}
       </Stack>
-    </Card>
+    </Box>
   );
 }

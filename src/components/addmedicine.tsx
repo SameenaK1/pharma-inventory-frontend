@@ -247,9 +247,6 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
 
   return (
     <Container size="xl" px="lg" py="xl">
-      {/* 1. Breadcrumbs */}
-      <Breadcrumbs mb="lg">{items}</Breadcrumbs>
-
       {/* 2. Unified Master Card Wrapper */}
       <Paper
         p={{ base: 'lg', md: 'xl' }}

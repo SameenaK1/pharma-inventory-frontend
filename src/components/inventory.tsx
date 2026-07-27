@@ -98,7 +98,7 @@ function renderStatusBadge(row: InventoryRecord) {
 }
 
 export default function Inventory() {
-  
+
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOption, setSortOption] = useState<SortOption>('insert_date');
     const [activePage, setActivePage] = useState(1);
@@ -112,23 +112,23 @@ export default function Inventory() {
     const totalPages = Math.ceil(totalRecords / pageSize);
 
     const [debouncedSearch] = useDebouncedValue(searchTerm, 350);
-const [modalOpen, setModalOpen] = useState(false);
-  const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedMedicine, setSelectedMedicine] = useState<any>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleUpdateRecord = (row: any) => {
-    setSelectedMedicine(row); // Save clicked row data
-    setModalOpen(true);       // Launch popup
-  };
+    const handleUpdateRecord = (row: any) => {
+        setSelectedMedicine(row); // Save clicked row data
+        setModalOpen(true);       // Launch popup
+    };
 
-  const handleAddNew = () => {
-    setSelectedMedicine(null); // No initial data => modal renders in "add" mode
-    setModalOpen(true);
-  };
+    const handleAddNew = () => {
+        setSelectedMedicine(null); // No initial data => modal renders in "add" mode
+        setModalOpen(true);
+    };
     // Reset page to 1 when filters or page size change
     useEffect(() => {
         setActivePage(1);
-    }, [searchTerm,  pageSize]);
+    }, [searchTerm, pageSize]);
     const [popoverOpened, { toggle, close }] = useDisclosure(false);
     // Fetch live inventory data whenever filters, sort, or page changes (runs on mount too).
     useEffect(() => {
@@ -139,7 +139,7 @@ const [modalOpen, setModalOpen] = useState(false);
             setError(null);
             try {
                 const response = await getInventoryList({
-                    name: debouncedSearch.trim() || undefined,
+                    search: debouncedSearch.trim() || undefined, // This triggers the backend OR clause across name, manufacturer, and composition
                     sortBy: sortOption,
                     page: activePage,
                     limit: pageSize,
@@ -224,13 +224,14 @@ const [modalOpen, setModalOpen] = useState(false);
                         <Group align="flex-end" gap="md" style={{ width: '100%', flexWrap: 'nowrap' }}>
                             <Group grow style={{ flex: 1 }} align="flex-end" gap="md">
                                 <TextInput
-                                    label="Medicine Name"
-                                    placeholder="Search by medicine..."
+                                    label="Search"
+                                    placeholder="Search by medicine, manufacturer or composition..."
                                     leftSection={<IconSearch size={16} />}
                                     value={searchTerm}
                                     onChange={(event) => setSearchTerm(event.currentTarget.value)}
                                 />
-                              <Popover
+                            </Group>
+                            <Popover
                                 opened={popoverOpened}
                                 onChange={toggle}
                                 position="bottom-end"
@@ -327,8 +328,6 @@ const [modalOpen, setModalOpen] = useState(false);
                                     </Radio.Group>
                                 </Popover.Dropdown>
                             </Popover>
-                            </Group>
-
                             {/* Add New Inventory */}
                             <Button
                                 leftSection={<IconPlus size={16} />}
@@ -482,7 +481,7 @@ const [modalOpen, setModalOpen] = useState(false);
                 opened={!!deleteRecord}
                 onClose={() => setDeleteRecord(null)}
                 title={<Text fw={700} color="red.7">Warning: Permanent Action</Text>}
-                
+
                 centered={false}
                 overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
             >
@@ -494,16 +493,16 @@ const [modalOpen, setModalOpen] = useState(false);
                     <Button variant="filled" color="red" size="xs" onClick={handleDeleteRecord}>Yes, Delete</Button>
                 </Group>
             </Modal>
-          <AddInventory 
-        opened={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-        initialData={selectedMedicine}
-        onSuccess={() => {
-          setModalOpen(false);
-          setSelectedMedicine(null);
-          setRefreshKey((key) => key + 1);
-        }}
-      />
+            <AddInventory
+                opened={modalOpen}
+                onClose={() => setModalOpen(false)}
+                initialData={selectedMedicine}
+                onSuccess={() => {
+                    setModalOpen(false);
+                    setSelectedMedicine(null);
+                    setRefreshKey((key) => key + 1);
+                }}
+            />
         </Container>
     );
 }
