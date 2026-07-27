@@ -109,39 +109,54 @@ export function LoginPage() {
     [form, type]
   );
 const login = useGoogleLogin({
-    prompt: 'consent', // Forces the permissions text overview to show up
+  
 
-    onSuccess: async (tokenResponse) => {
-      console.log('✅ Access Token Captured:', tokenResponse.access_token);
+  onSuccess: async (tokenResponse) => {
+    console.log('1️⃣ Success Object Received:', tokenResponse);
 
-      try {
-        // Fetch profile data from Google using the token
-        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });
-        
-        if (!res.ok) throw new Error('Failed to fetch profile');
-        const profileData = await res.json();
-        
-        // This is the structured JSON object ready for your backend database migration
-        const dbPayload = {
-          googleId: profileData.sub,
-          email: profileData.email,
-          name: profileData.name,
-          avatar: profileData.picture,
-          role: form.values.role, // Binds the UI role selected by the user
-          createdAt: new Date().toISOString()
-        };
-        
-        console.log(profileData.email, profileData.name, profileData.picture);
-        alert(`Success! Data ready to save to database for ${dbPayload.name}`);
+    // 2. Safe-check if access_token exists on the response object
+    if (!tokenResponse || !tokenResponse.access_token) {
+      console.error(
+        '❌ No access_token found in response! You might be getting an Authorization Code instead.',
+        'Object keys available:', Object.keys(tokenResponse)
+      );
+      return;
+    }
 
-      } catch (err) {
-        console.error('Data extraction failed:', err);
+    try {
+      console.log('2️⃣ Sending authorized request to Google API using token...');
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+      });
+      
+      console.log('3️⃣ API Response Status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Google API HTTP Error: ${res.status} - ${errorText}`);
       }
-    },
-    onError: (err) => console.error('OAuth Flow Aborted:', err)
-  });
+      
+      const profileData = await res.json();
+      console.log('4️⃣ SUCCESS! ALL EXTRACTED GOOGLE DATA:', profileData);
+      
+      const dbPayload = {
+        googleId: profileData.sub,
+        email: profileData.email,
+        name: profileData.name,
+        avatar: profileData.picture,
+        role: form.values.role, 
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log('5️⃣ Formatted DB Object:', dbPayload);
+      alert(`Success! Data structured for ${dbPayload.name}`);
+
+    } catch (err) {
+      console.error('🚨 Fetch failure caught inside try/catch block:', err);
+    }
+  },
+  onError: (err) => console.error('❌ OAuth Flow Aborted globally:', err)
+});
   const handleSubmit = useCallback(
     (values: FormValues) => {
       if (type === 'login') {
@@ -322,20 +337,32 @@ const handleGoogleLogin = useGoogleLogin({
           />
 
           {/* Google Workspace Button */}
-          <Button
-            variant="default"
-            fullWidth
-            leftSection={<GoogleIcon />}
-            onClick={() => handleGoogleLogin()}
-            radius="md"
-            size="md"
-            fw={500}
-            className={classes.googleButton}
-          >
-            {type === 'login'
-              ? 'Continue with Google Workspace'
-              : 'Sign up with Google Workspace'}
-          </Button>
+          {/* <Button
+  type="button" // 🌟 Explicitly prevents the browser from treating this as a form submit
+  variant="default"
+  fullWidth
+  leftSection={<GoogleIcon />}
+  onClick={(e) => handleGoogleLogin(e)} // 🌟 Pass the event object here
+  radius="md"
+  size="md"
+  fw={500}
+  className={classes.googleButton}
+>
+  {type === 'login'
+    ? 'Continue with Google Workspace'
+    : 'Sign up with Google Workspace'}
+</Button>*/}
+          <Button 
+  type="button" // 🌟 Explicitly tells the browser NOT to treat this as a form submit
+  fullWidth 
+  color="blue" 
+  onClick={(e) => {
+    e.preventDefault(); // 🌟 Stops the page from refreshing/reloading
+    login();
+  }}
+>
+  Sign in with Google
+</Button>
         </Paper>
 
         <Text ta="center" size="xs" c="dimmed" mt="xl">
