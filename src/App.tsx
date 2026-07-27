@@ -11,7 +11,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 
 export default function App() {
   const location = useLocation(); // 2. Grab the current URL path
-
   // 3. Check if the user is currently on the login page
   const isLoginPage = location.pathname === '/login';
   return (

@@ -14,8 +14,6 @@ import {
   Button,
   Group,
   Box,
-  Breadcrumbs,
-  Anchor,
   Container,
   Autocomplete,
   Loader
@@ -124,17 +122,6 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
     });
   }
 };
-
-  // Breadcrumbs navigation mapping
-  const items = [
-    { title: 'Dashboard', href: '#' },
-    { title: 'Inventory', href: '#' },
-    { title: 'Add New Item', href: '#' },
-  ].map((item, index) => (
-    <Anchor href={item.href} key={index} size="sm" c="dimmed">
-      {item.title}
-    </Anchor>
-  ));
 
   // Generic debounced search hook
   const useDebouncedSearch = (
