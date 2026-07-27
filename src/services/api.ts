@@ -137,9 +137,6 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
     }
   });
 
-  // FIXED: Moved log below the loop and used .toString() so you can actually see the query payload
-  console.log("Fetching inventory list with params:", query.toString()); 
-
   const response = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`);
 
   const body: InventoryListResponse = await response
@@ -171,7 +168,7 @@ export const addInventory = async (item: InventoryItem): Promise<{ success: bool
       const errorData = await response.json();
       console.error("Backend Validation Error Details:", errorData);
     } catch (e) {
-      console.error("Could not parse backend error body.");
+      console.error("Could not parse backend error body.", e);
     }
     throw new Error(`Failed to save inventory item: ${response.statusText}`);
   }

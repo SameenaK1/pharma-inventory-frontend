@@ -10,7 +10,7 @@ import NotFoundPage from './components/notfound';
 export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
-      <Flex h="100vh" w="100vw" bg="slate.0" style={{ overflow: 'hidden' }}>
+      <Flex h="100vh" w="100vw" style={{ overflow: 'hidden' }}>
         <Sidebar />
         <Flex direction="column" style={{ flexGrow: 1, overflow: 'hidden' }}>
           <Header />
