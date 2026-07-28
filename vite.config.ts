@@ -9,7 +9,6 @@ export default defineConfig({
     // Explicitly configure headers to allow cross-origin popup tracking
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
 })  
