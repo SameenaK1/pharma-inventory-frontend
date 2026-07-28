@@ -1,5 +1,7 @@
 import { MantineProvider, Flex, Box } from '@mantine/core';
-import { Routes, Route , useLocation} from 'react-router';
+import { Routes, Route, Outlet } from 'react-router';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 import { LoginPage } from './components/login';
 import Header from './components/header';
 import Sidebar from './components/sidebar';
@@ -7,50 +9,63 @@ import Dashboard from './components/dashboard';
 import AddInventory from './components/addmedicine';
 import Inventory from './components/inventory';
 import NotFoundPage from './components/notfound';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+
+// 🌟 Ensure your Auth imports are correct based on your file paths
+import { ProtectedRoute } from './services/ProtectedRoute';
+import { AuthContextProvider } from './services/authcontext'; 
+
+// 1. Create a Layout wrapper for your authenticated pages
+function AppLayout() {
+  return (
+    <Flex h="100vh" w="100vw" style={{ overflow: 'hidden' }}>
+      <Sidebar />
+      <Flex direction="column" style={{ flexGrow: 1, overflow: 'hidden' }}>
+        <Header />
+        <Box 
+          component="main" 
+          p="xl" 
+          style={{ 
+            flexGrow: 1, 
+            overflowY: 'auto', 
+            backgroundColor: '#f1f5f9' 
+          }}
+        >
+          {/* 🌟 Outlet acts as a portal. The dashboard or inventory page injects here! */}
+          <Outlet /> 
+        </Box>
+      </Flex>
+    </Flex>
+  );
+}
 
 export default function App() {
-  const location = useLocation();
-  
-  // 1. Change this to check for the root path instead of '/login'
-  const isLoginPage = location.pathname === '/'; 
+  // No more useLocation() needed! The router handles it all.
 
   return (
-    <GoogleOAuthProvider clientId="76787419088-nv3nspbilnd3gu6dnai2vposgf25afdd.apps.googleusercontent.com">
-      <MantineProvider defaultColorScheme="light">
-        {isLoginPage ? (
-          // 2. Render the login page directly at the root route
+    <AuthContextProvider>
+      <GoogleOAuthProvider clientId="76787419088-nv3nspbilnd3gu6dnai2vposgf25afdd.apps.googleusercontent.com">
+        <MantineProvider defaultColorScheme="light">
+          
           <Routes>
+            {/* 🔓 PUBLIC ROUTE */}
             <Route path="/" element={<LoginPage />} />
+
+            {/* 🔒 PROTECTED ROUTES */}
+            <Route element={<ProtectedRoute />}>
+              {/* Anything inside AppLayout gets the Sidebar & Header */}
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/addmedicine" element={<AddInventory />} />
+              </Route>
+            </Route>
+
+            {/* 🛑 CATCH-ALL ROUTE */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        ) : (
-          <Flex h="100vh" w="100vw" style={{ overflow: 'hidden' }}>
-            <Sidebar />
-            <Flex direction="column" style={{ flexGrow: 1, overflow: 'hidden' }}>
-              <Header />
-              <Box 
-                component="main" 
-                p="xl" 
-                style={{ 
-                  flexGrow: 1, 
-                  overflowY: 'auto', 
-                  backgroundColor: '#f1f5f9' 
-                }}
-              >
-                <Routes>
-                  {/* 3. Move your dashboard to a path like /dashboard or /app */}
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/inventory" element={<Inventory />} />
-                  <Route path="/addmedicine" element={<AddInventory />} />
-                  <Route path="/404-not-found" element={<NotFoundPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </Box>
-            </Flex>
-          </Flex>
-        )}
-      </MantineProvider>
-    </GoogleOAuthProvider>
+
+        </MantineProvider>
+      </GoogleOAuthProvider>
+    </AuthContextProvider>
   );
 }

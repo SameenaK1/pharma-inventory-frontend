@@ -11,6 +11,23 @@ declare global {
 
 export const API_BASE_URL = (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) || 'http://localhost:8080';
 
+const getAuthHeaders = (): HeadersInit => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      if (user.token) {
+        return {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json' // Good practice to include
+        };
+      }
+    } catch (e) {
+      console.error("Failed to parse auth token");
+    }
+  }
+  return {};
+};
 export interface Medicine {
   id: number;
   name: string;
@@ -53,6 +70,39 @@ export interface InventoryItem {
   insertdate: string;
   updatedate: string;
 }
+export interface UserProfile {
+  id: string; // UUID from database
+  username: string;
+  email: string;
+  role: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  license_number: string | null;
+  status: string;
+}
+
+export interface UserProfileResponse {
+  success: boolean;
+  data?: UserProfile;
+  error?: string;
+}
+
+// 🌟 2. The Fetch Function
+export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
+  const response = await fetch(`${API_BASE_URL}/user/profile`, {
+    method: 'GET',
+    headers: getAuthHeaders(), // Sends the JWT token!
+  });
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body.error || 'Failed to fetch user profile');
+  }
+
+  return body;
+};
 
 export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
   if (!name.trim()) {
@@ -126,6 +176,54 @@ export interface InventoryListResponse {
     hasPrev: boolean;
   };
 }
+export interface RegisterPayload {
+  role: string;
+  fullname: string;
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  username: string;
+  token: string;
+  error?: string;
+}
+
+// 🌟 2. Register (Insert) User API Call
+export const registerUser = async (data: RegisterPayload): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/user/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.error || 'Registration failed');
+  }
+  return body;
+};
+
+// 🌟 3. Login User API Call
+export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/user/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.error || 'Login failed');
+  }
+  return body;
+};
 
 export const getInventoryList = async (params: InventoryListParams = {}): Promise<InventoryListResponse> => {
   const query = new URLSearchParams();

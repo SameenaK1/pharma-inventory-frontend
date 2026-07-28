@@ -1,5 +1,5 @@
 import { useState, useCallback, type ChangeEvent } from 'react';
-import { useGoogleLogin, useGoogleOneTapLogin } from '@react-oauth/google'; // 🌟 Imported One-Tap Hook
+import { useGoogleLogin, useGoogleOneTapLogin } from '@react-oauth/google';
 import {
   TextInput,
   PasswordInput,
@@ -20,6 +20,12 @@ import {
 import { useForm } from '@mantine/form';
 import classes from './login.module.css';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../hooks/useAuth';
+
+// 🌟 Import the API functions we just created!
+// (Adjust the path if your api file is named or located differently)
+import { loginUser, registerUser } from '../services/api';
+
 const ROLE_OPTIONS = [
   { label: 'Pharmacist', value: 'pharmacist' },
   { label: 'Doctor', value: 'doctor' },
@@ -31,7 +37,8 @@ type AuthMode = 'login' | 'register';
 
 interface FormValues {
   role: Role;
-  name: string;
+  fullname: string; 
+  username: string; 
   email: string;
   password: string;
   confirmPassword: string;
@@ -55,18 +62,23 @@ const PharmaIcon = () => (
 
 export function LoginPage() {
   const [type, setType] = useState<AuthMode>('login');
+  const navigate = useNavigate();
+  const { dispatch } = useAuth();
 
   const form = useForm<FormValues>({
     initialValues: {
       role: 'pharmacist',
-      name: '',
+      fullname: '',
+      username: '',
       email: '',
       password: '',
       confirmPassword: '',
     },
     validate: {
-      name: (val) =>
+      fullname: (val) =>
         type === 'register' && val.trim().length < 2 ? 'Full name is required' : null,
+      username: (val) =>
+        type === 'register' && val.trim().length < 3 ? 'Username (min 3 chars) required' : null,
       email: (val) => (/^\S+@\S+$/.test(val) ? null : 'Invalid email'),
       password: (val) =>
         val.length < 6 ? 'Password is too short (min 6 characters)' : null,
@@ -75,17 +87,12 @@ export function LoginPage() {
     },
   });
 
-  // Common function to process profile tokens from Google
-const navigate = useNavigate();
-
   const handleGoogleSuccessResponse = useCallback(async (credentialResponse: any) => {
     try {
       const token = credentialResponse.credential || credentialResponse.access_token;
       if (!token) return;
 
-      // ... your auth logic ...
-
-      // Now 'navigate' is recognized and will work perfectly
+      // Note: When setting up Google backend tokens, remember to call dispatch here too!
       setTimeout(() => {
         navigate('/dashboard'); 
       }, 800);
@@ -95,19 +102,17 @@ const navigate = useNavigate();
     }
   }, [navigate]);
 
- useGoogleOneTapLogin({
-  onSuccess: (credentialResponse) => {
-    console.log('One Tap Success:', credentialResponse);
-    handleGoogleSuccessResponse(credentialResponse);
-  },
-  onError: () => {
-    console.log('One-Tap skipped: No active Google session found in this browser profile.');
-  },
-  // Prevents the script from throwing strict network breaks if clicking away
-  cancel_on_tap_outside: true, 
-});
+  useGoogleOneTapLogin({
+    onSuccess: (credentialResponse) => {
+      console.log('One Tap Success:', credentialResponse);
+      handleGoogleSuccessResponse(credentialResponse);
+    },
+    onError: () => {
+      console.log('One-Tap skipped: No active Google session found in this browser profile.');
+    },
+    cancel_on_tap_outside: true, 
+  });
 
-  // 2. FALLBACK MANUAL BUTTON LOGIN
   const login = useGoogleLogin({
     onSuccess: (tokenResponse) => {
       handleGoogleSuccessResponse(tokenResponse);
@@ -126,10 +131,50 @@ const navigate = useNavigate();
   );
 
   const handleSubmit = useCallback(
-    (values: FormValues) => {
-      console.log('Form Submit Payload:', values);
+    async (values: FormValues) => {
+      try {
+        // 🌟 Use our clean frontend API functions!
+        let data;
+        
+        if (type === 'login') {
+          data = await loginUser({ 
+            email: values.email, 
+            password: values.password 
+          });
+        } else {
+          data = await registerUser({ 
+            role: values.role, 
+            fullname: values.fullname, 
+            username: values.username, 
+            email: values.email, 
+            password: values.password 
+          });
+        }
+
+        // 🌟 On success, update AuthContext and LocalStorage
+        const authPayload = {
+          username: data.username || values.email.split('@')[0], 
+          token: data.token
+        };
+
+        localStorage.setItem('user', JSON.stringify(authPayload));
+        dispatch({ type: 'LOGIN', payload: authPayload });
+        navigate('/dashboard');
+
+      } catch (error: any) {
+        // 🌟 Handle errors thrown by the API file cleanly
+        console.error('Submission error:', error);
+        
+        const errorMessage = error.message || 'Server connection lost. Please try again.';
+        
+        if (errorMessage.toLowerCase().includes('password')) {
+          form.setFieldError('password', errorMessage);
+        } else {
+          form.setFieldError('email', errorMessage);
+        }
+      }
     },
-    []
+    [type, navigate, dispatch, form]
   );
 
   const toggleAuthMode = useCallback(() => {
@@ -175,14 +220,24 @@ const navigate = useNavigate();
               </Box>
 
               {type === 'register' && (
-                <TextInput
-                  label="Full Name"
-                  placeholder="Dr. Alex Carter"
-                  required
-                  radius="md"
-                  key={form.key('name')}
-                  {...form.getInputProps('name')}
-                />
+                <>
+                  <TextInput
+                    label="Full Name"
+                    placeholder="Dr. Alex Carter"
+                    required
+                    radius="md"
+                    key={form.key('fullname')}
+                    {...form.getInputProps('fullname')}
+                  />
+                  <TextInput
+                    label="Username"
+                    placeholder="alexcarter99"
+                    required
+                    radius="md"
+                    key={form.key('username')}
+                    {...form.getInputProps('username')}
+                  />
+                </>
               )}
 
               <TextInput
