@@ -1,12 +1,1 @@
-import { useContext } from 'react';
-import { AuthContext } from '../services/authcontext';
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used inside an AuthContextProvider block.');
-  }
-
-  return context;
-};
+export { useAuth } from '../services/authcontext';
