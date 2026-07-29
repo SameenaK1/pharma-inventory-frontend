@@ -15,14 +15,14 @@ import App from './App.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-    <AuthContextProvider>
+   
       {/* 1. Add the MantineProvider wrapper here */}
       <MantineProvider>
         {/* 2. Place the Notifications component inside it */}
         <Notifications position="top-right" zIndex={1000} />
         <App />
       </MantineProvider>
-    </AuthContextProvider>
+    
     </BrowserRouter>
   </StrictMode>,
 )

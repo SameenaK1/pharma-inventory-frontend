@@ -8,7 +8,7 @@ export default function Sidebar() {
   const location = useLocation();
 
   const linksData = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} />, path: '/' },
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} />, path: '/dashboard' },
     { id: 'inventory', label: 'Inventory', icon: <Boxes size={19} />, path: '/inventory' },
     { id: 'addmedicine', label: 'Add Medicine', icon: <Pill size={19} />, path: '/addmedicine' },
     { id: 'sales', label: 'Sales Logs', icon: <ShoppingCart size={19} />, path: '/sales' },

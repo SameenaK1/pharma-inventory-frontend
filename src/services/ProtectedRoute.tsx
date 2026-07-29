@@ -1,13 +1,13 @@
 import { Navigate, Outlet } from 'react-router';
 // 🌟 Pointing directly to your context file inside the services folder
-import { useAuth } from './authcontext'; 
+import { useAuth } from './authcontext';
 
 export function ProtectedRoute() {
   // 🌟 FIX: Extract 'user' directly instead of 'state'
-  const { user } = useAuth(); 
+  const { user } = useAuth();
 
   // 1. Check current application context state first
-let token: string | null | undefined = user?.token;
+  let token: string | null | undefined = user?.token;
 
   // 2. Hydration fallback: Check localStorage if context state isn't populated yet
   if (!token) {
