@@ -80,24 +80,26 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
   }
 
   // 2. Database/API Submission
-  try {
-    const item: InventoryItem = {
-      name: medicineName,
-      manufacturername: manufacturer,
-      type: medicineType || "Allopathy",
-      packsizelabel: packsize?.toString() || "",
-      composition1: composition1,
-      composition2: composition2,
-      mrp: Number(mrp) || 0,
-      stockquantity: Number(quantity) || 0,
-      purchaseprice: Number(purchasePrice) || 0,
-      sellingprice: Number(sellingPrice) || 0,
-      stockalertthreshold: Number(alertthreshold) || 0,
-      expirydate: expiryDate || "",
-      username: "admin",
-      insertdate: "2026-07-21",
-      updatedate: "2026-07-21"
-    };
+ try {
+      const item: InventoryItem = {
+        name: medicineName,
+        manufacturername: manufacturer,
+        type: medicineType || 'Allopathy',
+        packsizelabel: packsize?.toString() || '',
+        composition1,
+        composition2,
+        mrp: Number(mrp) || 0,
+        batchnumber: '',
+        shelfrackinfo: '',
+        stockquantity: Number(quantity) || 0,
+        purchaseprice: Number(purchasePrice) || 0,
+        sellingprice: Number(sellingPrice) || 0,
+        stockalertthreshold: Number(alertthreshold) || 0,
+        expirydate: expiryDate || '',
+        username: 'admin',
+        insertdate: new Date().toISOString(),
+        updatedate: new Date().toISOString(),
+      };
 
     await addInventory(item);
     

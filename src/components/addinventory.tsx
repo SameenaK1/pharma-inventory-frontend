@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   SimpleGrid,
@@ -12,7 +12,8 @@ import {
   Group,
   Button,
   ThemeIcon,
-  Divider
+  Divider,
+  Loader
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -24,7 +25,20 @@ import {
   IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { addInventory, type InventoryItem } from '../services/api';
+import { debounce } from '../utils/debounce';
+import {
+  addInventory,
+  getMedicineByName,
+  getManufacturerName,
+  type InventoryItem,
+  type Medicine
+} from '../services/api';
+
+// Manufacturer type for type safety
+export type Manufacturer = {
+  id: number;
+  name: string;
+};
 
 interface InventoryModalFormProps {
   opened: boolean;
@@ -33,7 +47,12 @@ interface InventoryModalFormProps {
   onSuccess?: () => void;
 }
 
-export default function InventoryModalForm({ opened, onClose, initialData, onSuccess }: InventoryModalFormProps) {
+export default function InventoryModalForm({
+  opened,
+  onClose,
+  initialData,
+  onSuccess
+}: InventoryModalFormProps) {
   // --- STATES ---
   const [quantity, setQuantity] = useState<number | string>(1);
   const [alertthreshold, setAlertThreshold] = useState<number | string>(6);
@@ -54,6 +73,15 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [warningModalOpened, setWarningModalOpened] = useState<boolean>(false);
 
+  // --- API FETCHING STATES ---
+  const [suggestions, setSuggestions] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const [confirmedManufacturer, setConfirmedManufacturer] = useState<string>('');
+  const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
+  const [manufacturerLoading, setManufacturerLoading] = useState(false);
+  const [, setError] = useState<string | null>(null);
+
   const [originalIdentity, setOriginalIdentity] = useState<{
     name: string;
     manufacturer: string;
@@ -61,7 +89,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
     composition1: string;
   } | null>(null);
 
-  const isEditMode = !!initialData;
 
   // --- STRICT VALIDATION RULES ---
   const isMedicineNameValid = medicineName.trim().length > 0 && medicineName.length <= 500;
@@ -83,9 +110,97 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
     isSellingPriceValid &&
     isMrpValid;
 
-  // Soft warning triggers
   const isMissingWarningFields = (Number(purchasePrice) <= 0) || (composition1.trim().length === 0);
 
+  // --- API DEBOUNCE & FETCH LOGIC ---
+  const useDebouncedSearch = (
+    apiFunction: (query: string) => Promise<any>,
+    setSuggestions: (data: any[]) => void,
+    setLoading: (loading: boolean) => void,
+    setError: (error: string | null) => void,
+    emptyValue: () => void = () => { }
+  ) => {
+    const debouncedSearch = useCallback(
+      debounce(async (name: string, isSelection: boolean = false) => {
+        if (isSelection || !name.trim()) {
+          emptyValue();
+          setLoading(false);
+          return;
+        }
+
+        setLoading(true);
+        try {
+          const response = await apiFunction(name);
+          setSuggestions(response.data || []);
+          setError(null);
+        } catch (error) {
+          setSuggestions([]);
+          setError('Failed to fetch data. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      }, 1000),
+      [apiFunction]
+    );
+
+    return debouncedSearch;
+  };
+
+  const debouncedSearch = useDebouncedSearch(
+    getMedicineByName,
+    setSuggestions,
+    setLoading,
+    setError,
+    () => setSuggestions([])
+  );
+
+  const debouncedManufacturerSearch = useDebouncedSearch(
+    getManufacturerName,
+    setManufacturerSuggestions,
+    setManufacturerLoading,
+    setError,
+    () => setManufacturerSuggestions([])
+  );
+
+  const handleMedicineNameChange = (value: string) => {
+    setMedicineName(value);
+    debouncedSearch(value);
+  };
+
+  const handleMedicineSelect = (medicine: Medicine) => {
+    setSelectedMedicine(medicine);
+    setComposition1(medicine.composition1 || '');
+    setComposition2(medicine.composition2 || '');
+    setPackSize(medicine.pack_size_label || '');
+    if (medicine.type) setMedicineType(medicine.type);
+
+    // Update both manufacturer states here
+    setManufacturer(medicine.manufacturer_name || '');
+    setConfirmedManufacturer(medicine.manufacturer_name || '');
+
+    setLoading(false);
+    setSuggestions([]);
+  }
+
+  const handleManufacturerNameChange = (value: string) => {
+    setManufacturer(value);
+    setConfirmedManufacturer(''); // Clear confirmation because user is typing a new search
+    if (!value.trim()) {
+      setManufacturerSuggestions([]);
+      setManufacturerLoading(false);
+      return;
+    }
+    debouncedManufacturerSearch(value);
+  };
+
+  const handleManufacturerSelect = (manufacturerName: string) => {
+    setManufacturer(manufacturerName);
+    setConfirmedManufacturer(manufacturerName); // Confirm the selection
+    setManufacturerSuggestions([]);
+    setManufacturerLoading(false);
+  };
+
+  // --- LIFECYCLE & SUBMISSION ---
   useEffect(() => {
     if (opened) {
       if (initialData) {
@@ -108,7 +223,11 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
           manufacturer: initialData.manufacturername || initialData.manufacturer_name || '',
           packsize: (initialData.pack_size_label ?? '').toString(),
           composition1: initialData.composition1 || '',
+
         });
+        const initialMfg = initialData.manufacturername || initialData.manufacturer_name || '';
+        setManufacturer(initialMfg);
+        setConfirmedManufacturer(initialMfg); // Set this here
       } else {
         setOriginalIdentity(null);
         resetFormFields();
@@ -119,7 +238,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
   const handleInitialSubmitCheck = () => {
     setIsSubmitted(true);
 
-    // 1. Mandatory validation check
     if (!isFormValid) {
       notifications.show({
         title: 'Required Fields Missing',
@@ -130,7 +248,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
       return;
     }
 
-    // 2. Prevent historical mutations while editing records
     if (originalIdentity) {
       const identityChanged =
         medicineName !== originalIdentity.name ||
@@ -149,19 +266,17 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
       }
     }
 
-    // 3. Open warning popup if recommended fields are empty
     if (isMissingWarningFields) {
       setWarningModalOpened(true);
       return;
     }
 
-    // 4. Everything complete, run database insert directly
     executeDatabaseInsert();
   };
 
   const executeDatabaseInsert = async () => {
     setIsSaving(true);
-    setWarningModalOpened(false); // Make sure warning popup closes immediately
+    setWarningModalOpened(false);
 
     try {
       const item: InventoryItem = {
@@ -224,9 +339,13 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
     setMedicineType('Allopathy');
     setIsSubmitted(false);
     setWarningModalOpened(false);
+    setSuggestions([]);
+    setManufacturerSuggestions([]);
+    setSelectedMedicine(null);
+    setConfirmedManufacturer('');
   };
 
-  // Textbox container highlighting rule logic
+  // --- STYLING ---
   const getInputStyles = (isValid: boolean) => {
     const errorActive = isSubmitted && !isValid;
     return {
@@ -252,7 +371,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
     };
   };
 
-  // Softer indicator colors exclusively applied during validation warnings
   const getWarningFieldStyles = (isEmpty: boolean) => {
     const warningActive = isSubmitted && isEmpty;
     return {
@@ -271,7 +389,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
 
   return (
     <>
-      {/* MAIN DATA INPUT MODAL */}
       <Modal
         opened={opened}
         onClose={onClose}
@@ -310,17 +427,48 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
             </Group>
 
             <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
-              <Autocomplete
-                label="Medicine Name"
-                placeholder="e.g. Paracetamol 650mg"
-                required
-                readOnly={isEditMode}
-                error={isSubmitted && !isMedicineNameValid ? "Name is required" : null}
-                value={medicineName}
-                onChange={setMedicineName}
-                data={[]}
-                styles={getInputStyles(isMedicineNameValid)}
-              />
+              <Box>
+                <Autocomplete
+                  label="Medicine Name"
+                  placeholder="Search medicine..."
+                  required
+                  error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
+                  value={medicineName}
+                  onChange={(value) => {
+                    handleMedicineNameChange(value);
+                    const medicine = suggestions.find(med => med.name === value);
+                    if (medicine) {
+                      handleMedicineSelect(medicine);
+                      setLoading(false);
+                      debouncedSearch(value, true);
+                    } else {
+                      debouncedSearch(value, false);
+                    }
+                  }}
+                  data={suggestions.map((med) => ({
+                    value: `${med.name}||id:${med.id}`,
+                    label: med.name
+                  }))}
+                  rightSection={loading ? <Loader size="sm" /> : null}
+                  rightSectionWidth={40}
+                />
+                {/* Show 0 records ONLY when actively searching and no results are returned */}
+                {medicineName.trim() &&
+                  !loading &&
+                  suggestions.length === 0 &&
+                  medicineName !== initialData?.name &&
+                  medicineName !== selectedMedicine?.name && (
+                    <Text size="xs" c="red.6" mt={4} fw={500}>
+                      0 records found
+                    </Text>
+                  )}
+                {/* Show search suggestions count only when actively typing dropdown alternatives */}
+                {medicineName.trim() && !loading && suggestions.length > 0 && medicineName !== selectedMedicine?.name && (
+                  <Text size="xs" c="dimmed" mt={4}>
+                    {suggestions.length} found
+                  </Text>
+                )}
+              </Box>
 
               <NumberInput
                 label="Stock Quantity (Number of Packs)"
@@ -364,17 +512,35 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
             </Group>
 
             <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
-              <Autocomplete
-                label="Manufacturer / Company Name"
-                placeholder="e.g. Cipla Ltd"
-                required
-                readOnly={isEditMode}
-                error={isSubmitted && !isManufacturerValid ? "Manufacturer required" : null}
-                value={manufacturer}
-                onChange={setManufacturer}
-                data={[]}
-                styles={getInputStyles(isManufacturerValid)}
-              />
+              <Box>
+                <Autocomplete
+                  label="Manufacturer / Company Name"
+                  placeholder="e.g. Cipla Ltd"
+                  error={isSubmitted && !isManufacturerValid ? "Manufacturer required" : null}
+                  value={manufacturer}
+                  onChange={(value) => {
+                    const selectedManufacturer = manufacturerSuggestions.find(m => m.name === value);
+                    if (selectedManufacturer) {
+                      handleManufacturerSelect(value);
+                      return;
+                    }
+                    handleManufacturerNameChange(value);
+                  }}
+                  data={manufacturerSuggestions.map(m => m.name)}
+                  rightSection={manufacturerLoading ? <Loader size="sm" /> : null}
+                  rightSectionWidth={40}
+                  styles={getInputStyles(isManufacturerValid)}
+                />
+                {/* Safe from false positives: Checks against initial data, auto-fill, and selected states */}
+                {manufacturer.trim() &&
+                  !manufacturerLoading &&
+                  manufacturerSuggestions.length === 0 &&
+                  manufacturer !== confirmedManufacturer && (
+                    <Text size="xs" c="red.6" mt={4} fw={500}>
+                      0 records found
+                    </Text>
+                  )}
+              </Box>
 
               <Select
                 label="Medicine Type (Category)"
@@ -389,7 +555,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
               <TextInput
                 label="Main Formula / Active Composition"
                 placeholder="e.g. Paracetamol IP 650mg"
-                readOnly={isEditMode}
                 value={composition1}
                 onChange={(e) => setComposition1(e.currentTarget.value)}
                 styles={getWarningFieldStyles(composition1.trim().length === 0)}
@@ -457,7 +622,6 @@ export default function InventoryModalForm({ opened, onClose, initialData, onSuc
                 <TextInput
                   label="Pack Size (Units inside 1 item)"
                   placeholder="e.g. 10 Tablets / Strip"
-                  readOnly={isEditMode}
                   value={packsize}
                   onChange={(e) => setPackSize(e.currentTarget.value)}
                   styles={getInputStyles(true)}
