@@ -12,21 +12,23 @@ declare global {
 export const API_BASE_URL = (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) || 'http://localhost:8080';
 
 const getAuthHeaders = (): HeadersInit => {
+  if (typeof window === 'undefined') return {};
+
   const userStr = localStorage.getItem('user');
-  if (userStr) {
-    try {
-      const user = JSON.parse(userStr);
-      if (user.token) {
-        return {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json' // Good practice to include
-        };
-      }
-    } catch (e) {
-      console.error("Failed to parse auth token");
-    }
+  if (!userStr) return {};
+
+  try {
+    const user = JSON.parse(userStr) as { token?: string };
+    if (!user?.token) return {};
+
+    return {
+      Authorization: `Bearer ${user.token}`,
+      'Content-Type': 'application/json',
+    };
+  } catch (e) {
+    console.error('Failed to parse auth token', e);
+    return {};
   }
-  return {};
 };
 export interface Medicine {
   id: number;
