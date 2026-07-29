@@ -1,5 +1,8 @@
 import { MantineProvider, Flex, Box } from '@mantine/core';
-import { Routes, Route } from 'react-router';
+import { Routes, Route, Outlet } from 'react-router';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
+import { LoginPage } from './components/login';
 import Header from './components/header';
 import Sidebar from './components/sidebar';
 import Dashboard from './components/dashboard';
@@ -7,33 +10,62 @@ import AddInventory from './components/addmedicine';
 import Inventory from './components/inventory';
 import NotFoundPage from './components/notfound';
 
-export default function App() {
-  return (
-    <MantineProvider defaultColorScheme="light">
-      <Flex h="100vh" w="100vw" style={{ overflow: 'hidden' }}>
-        <Sidebar />
-        <Flex direction="column" style={{ flexGrow: 1, overflow: 'hidden' }}>
-          <Header />
-          <Box 
-            component="main" 
-            p="xl" 
-            style={{ 
-              flexGrow: 1, 
-              overflowY: 'auto', 
-              backgroundColor: '#f1f5f9' 
-            }}
-          >
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/addmedicine" element={<AddInventory />} />
-              <Route path="/404-not-found" element={<NotFoundPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Box>
+// 🌟 Ensure your Auth imports are correct based on your file paths
+import { ProtectedRoute } from './services/ProtectedRoute';
+import { AuthContextProvider } from './services/authcontext'; 
 
-        </Flex>
+// 1. Create a Layout wrapper for your authenticated pages
+function AppLayout() {
+  return (
+    <Flex h="100vh" w="100vw" style={{ overflow: 'hidden' }}>
+      <Sidebar />
+      <Flex direction="column" style={{ flexGrow: 1, overflow: 'hidden' }}>
+        <Header />
+        <Box 
+          component="main" 
+          p="xl" 
+          style={{ 
+            flexGrow: 1, 
+            overflowY: 'auto', 
+            backgroundColor: '#f1f5f9' 
+          }}
+        >
+          {/* 🌟 Outlet acts as a portal. The dashboard or inventory page injects here! */}
+          <Outlet /> 
+        </Box>
       </Flex>
-    </MantineProvider>
+    </Flex>
+  );
+}
+
+export default function App() {
+  // No more useLocation() needed! The router handles it all.
+
+  return (
+    <AuthContextProvider>
+      <GoogleOAuthProvider clientId="76787419088-nv3nspbilnd3gu6dnai2vposgf25afdd.apps.googleusercontent.com">
+        <MantineProvider defaultColorScheme="light">
+          
+          <Routes>
+            {/* 🔓 PUBLIC ROUTE */}
+            <Route path="/" element={<LoginPage />} />
+
+            {/* 🔒 PROTECTED ROUTES */}
+            <Route element={<ProtectedRoute />}>
+              {/* Anything inside AppLayout gets the Sidebar & Header */}
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/addmedicine" element={<AddInventory />} />
+              </Route>
+            </Route>
+
+            {/* 🛑 CATCH-ALL ROUTE */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+
+        </MantineProvider>
+      </GoogleOAuthProvider>
+    </AuthContextProvider>
   );
 }

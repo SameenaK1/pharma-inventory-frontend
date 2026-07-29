@@ -1,0 +1,57 @@
+.clinicalGradient {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f8fafc 100%);
+}
+
+.authCard {
+  background-color: #ffffff;
+  border-color: #dbeafe;
+}
+
+.brandTitle {
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.submitButton {
+  background-color: #0284c7;
+}
+
+.submitButton:hover {
+  background-color: #0ea5e9;
+}
+
+.toggleAnchor {
+  color: #0284c7;
+}
+
+.toggleAnchor:hover {
+  color: #0ea5e9;
+}
+
+.googleButton {
+  border: 1px solid #cbd5e1;
+}
+
+.googleButton:hover {
+  background-color: #f8fafc;
+}
+
+/* SegmentedControl clinical styling */
+.roleControl {
+  background-color: #f1f5f9;
+}
+
+.roleControl [data-active] {
+  background-color: #0284c7;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.roleControl label {
+  color: #475569;
+}
