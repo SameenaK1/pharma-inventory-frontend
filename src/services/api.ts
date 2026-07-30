@@ -63,6 +63,8 @@ export interface InventoryItem {
   composition1: string;
   composition2: string;
   mrp: number;
+  batchnumber: string;
+  shelfrackinfo: string;
   stockquantity: number;
   purchaseprice: number;
   sellingprice: number;
@@ -142,6 +144,8 @@ export interface InventoryRecord {
   composition1: string;
   composition2: string;
   mrp: number | null;
+  batch_number: string | null;
+  shelf_rack_info: string | null;
   stock_quantity: number;
   purchase_price: number | null;
   selling_price: number | null;
