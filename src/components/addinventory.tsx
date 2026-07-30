@@ -31,14 +31,15 @@ import {
   getMedicineByName,
   getManufacturerName,
   type InventoryItem,
-  type Medicine
+  type Medicine,
+   type Manufacturer
 } from '../services/api';
 
 // Manufacturer type for type safety
-export type Manufacturer = {
-  id: number;
-  name: string;
-};
+// export type Manufacturer = {
+//   id: number;
+//   name: string;
+// };
 
 interface InventoryModalFormProps {
   opened: boolean;
@@ -164,7 +165,6 @@ export default function InventoryModalForm({
 
   const handleMedicineNameChange = (value: string) => {
     setMedicineName(value);
-    debouncedSearch(value);
   };
 
   const handleMedicineSelect = (medicine: Medicine) => {
