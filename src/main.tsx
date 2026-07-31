@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
-import { AuthContextProvider } from './services/authcontext.tsx'
 // Styles must be imported before components render
 import '@mantine/core/styles.css' 
 import '@mantine/notifications/styles.css'

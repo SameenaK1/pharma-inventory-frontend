@@ -1,7 +1,15 @@
 import { Box, Group, Avatar, Text, Menu, UnstyledButton } from '@mantine/core';
 import { ChevronDown, LogOut, User, Settings, Bell } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router';
 
 export default function Header() {
+  const { logout } = useAuth();
+   const navigate = useNavigate();
+  const handleClearSession = () => {
+    logout();            // Triggers complete token destruction
+    navigate('/');  // Immediately redirects to the login screen
+  };
   return (
     <Box component="header" h={70} px="xl" bg="white" className="app-header">
       {/* Structural scoped styles for clean alignment */}
@@ -104,7 +112,7 @@ export default function Header() {
             <Menu.Item leftSection={<User size={14} />}>My Profile</Menu.Item>
             <Menu.Item leftSection={<Settings size={14} />}>System Settings</Menu.Item>
             <Menu.Divider />
-            <Menu.Item color="red" leftSection={<LogOut size={14} />}>
+            <Menu.Item color="red" leftSection={<LogOut size={14} />} onClick={handleClearSession}>
               Logout Account
             </Menu.Item>
           </Menu.Dropdown>

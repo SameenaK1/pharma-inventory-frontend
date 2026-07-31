@@ -12,7 +12,7 @@ import NotFoundPage from './components/notfound';
 
 // 🌟 Ensure your Auth imports are correct based on your file paths
 import { ProtectedRoute } from './services/ProtectedRoute';
-import { AuthContextProvider } from './services/authcontext'; 
+import { AuthProvider } from './services/authcontext'; 
 
 // 1. Create a Layout wrapper for your authenticated pages
 function AppLayout() {
@@ -42,7 +42,7 @@ export default function App() {
   // No more useLocation() needed! The router handles it all.
 
   return (
-    <AuthContextProvider>
+    <AuthProvider>
       <GoogleOAuthProvider clientId="76787419088-nv3nspbilnd3gu6dnai2vposgf25afdd.apps.googleusercontent.com">
         <MantineProvider defaultColorScheme="light">
           
@@ -66,6 +66,6 @@ export default function App() {
 
         </MantineProvider>
       </GoogleOAuthProvider>
-    </AuthContextProvider>
+    </AuthProvider>
   );
 }
