@@ -8,7 +8,7 @@ export default function Header() {
    const navigate = useNavigate();
   const handleClearSession = () => {
     logout();            // Triggers complete token destruction
-    navigate('/login');  // Immediately redirects to the login screen
+    navigate('/');  // Immediately redirects to the login screen
   };
   return (
     <Box component="header" h={70} px="xl" bg="white" className="app-header">
