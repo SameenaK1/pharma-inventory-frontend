@@ -13,7 +13,8 @@ import {
   Button,
   ThemeIcon,
   Divider,
-  Loader
+  Loader,
+  Tooltip
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -22,6 +23,7 @@ import {
   IconFlask,
   IconCoins,
   IconCalendarEvent,
+  IconInfoCircle,
   IconX
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
@@ -387,6 +389,34 @@ export default function InventoryModalForm({
     };
   };
 
+  const renderLabelWithTooltip = (label: string, helpText: string) => (
+    <Box
+      component="span"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        verticalAlign: 'middle'
+      }}
+    >
+      <Text component="span" size="sm" fw={500} c="#334155" style={{ lineHeight: 1.2 }}>
+        {label}
+      </Text>
+      <Tooltip label={helpText} withArrow position="top-start" multiline w={260}>
+        <ThemeIcon
+          component="span"
+          variant="light"
+          size="sm"
+          radius="xl"
+          color="blue"
+          style={{ cursor: 'help', display: 'inline-flex' }}
+        >
+          <IconInfoCircle size={12} />
+        </ThemeIcon>
+      </Tooltip>
+    </Box>
+  );
+
   return (
     <>
       <Modal
@@ -428,30 +458,35 @@ export default function InventoryModalForm({
 
             <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
               <Box>
-                <Autocomplete
-                  label="Medicine Name"
-                  placeholder="Search medicine..."
-                  required
-                  error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
-                  value={medicineName}
-                  onChange={(value) => {
-                    handleMedicineNameChange(value);
-                    const medicine = suggestions.find(med => med.name === value);
-                    if (medicine) {
-                      handleMedicineSelect(medicine);
-                      setLoading(false);
-                      debouncedSearch(value, true);
-                    } else {
-                      debouncedSearch(value, false);
-                    }
-                  }}
-                  data={suggestions.map((med) => ({
-                    value: `${med.name}||id:${med.id}`,
-                    label: med.name
-                  }))}
-                  rightSection={loading ? <Loader size="sm" /> : null}
-                  rightSectionWidth={40}
-                />
+              
+                  <Autocomplete
+                    label={renderLabelWithTooltip(
+                      'Medicine Name',
+                      'Type the medicine name to search existing records. Choosing a suggestion auto-fills known details like composition and manufacturer.'
+                    )}
+                    placeholder="Search medicine..."
+                    required
+                    error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
+                    value={medicineName}
+                    onChange={(value) => {
+                      handleMedicineNameChange(value);
+                      const medicine = suggestions.find(med => med.name === value);
+                      if (medicine) {
+                        handleMedicineSelect(medicine);
+                        setLoading(false);
+                        debouncedSearch(value, true);
+                      } else {
+                        debouncedSearch(value, false);
+                      }
+                    }}
+                    data={suggestions.map((med) => ({
+                      value: `${med.name}||id:${med.id}`,
+                      label: med.name
+                    }))}
+                    rightSection={loading ? <Loader size="sm" /> : null}
+                    rightSectionWidth={40}
+                    styles={getInputStyles(isMedicineNameValid)}
+                  />
                 {/* Show 0 records ONLY when actively searching and no results are returned */}
                 {medicineName.trim() &&
                   !loading &&
@@ -471,7 +506,10 @@ export default function InventoryModalForm({
               </Box>
 
               <NumberInput
-                label="Stock Quantity (Number of Packs)"
+                label={renderLabelWithTooltip(
+                  'Stock Quantity (Number of Packs)',
+                  'Enter how many packs you currently have for this batch. This value is used for available stock calculations and low-stock alerts.'
+                )}
                 placeholder="Enter pack quantity"
                 required
                 value={quantity}
@@ -482,7 +520,10 @@ export default function InventoryModalForm({
               />
 
               <TextInput
-                label="Batch Number (Lot No.)"
+                label={renderLabelWithTooltip(
+                  'Batch Number (Lot No.)',
+                  'Use the manufacturer lot or batch code printed on the package. This helps with expiry tracking, recalls, and audit history.'
+                )}
                 placeholder="e.g. BT-9921"
                 required
                 error={isSubmitted && !isBatchNumberValid ? "Batch code required" : null}
@@ -493,7 +534,10 @@ export default function InventoryModalForm({
 
               <TextInput
                 type="date"
-                label="Expiry Date"
+                label={renderLabelWithTooltip(
+                  'Expiry Date',
+                  'Select the exact expiry date for this batch so the system can help prevent selling expired stock.'
+                )}
                 required
                 error={isSubmitted && !isExpiryDateValid ? "Select date" : null}
                 value={expiryDate}
@@ -514,7 +558,10 @@ export default function InventoryModalForm({
             <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
               <Box>
                 <Autocomplete
-                  label="Manufacturer / Company Name"
+                  label={renderLabelWithTooltip(
+                    'Manufacturer / Company Name',
+                    'Search and select the medicine manufacturer. Using a consistent manufacturer name keeps reports and records clean.'
+                  )}
                   placeholder="e.g. Cipla Ltd"
                   error={isSubmitted && !isManufacturerValid ? "Manufacturer required" : null}
                   value={manufacturer}
@@ -543,7 +590,10 @@ export default function InventoryModalForm({
               </Box>
 
               <Select
-                label="Medicine Type (Category)"
+                label={renderLabelWithTooltip(
+                  'Medicine Type (Category)',
+                  'Choose the product category for filtering and reporting. Example: Allopathy, Ayurvedic, Homeopathy, or Surgical.'
+                )}
                 required
                 data={['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other']}
                 error={isSubmitted && !isTypeValid ? "Select category" : null}
@@ -553,7 +603,10 @@ export default function InventoryModalForm({
               />
 
               <TextInput
-                label="Main Formula / Active Composition"
+                label={renderLabelWithTooltip(
+                  'Main Formula / Active Composition',
+                  'Add the main active ingredient and strength, such as Paracetamol 650 mg. This helps pharmacists identify substitutes safely.'
+                )}
                 placeholder="e.g. Paracetamol IP 650mg"
                 value={composition1}
                 onChange={(e) => setComposition1(e.currentTarget.value)}
@@ -561,7 +614,10 @@ export default function InventoryModalForm({
               />
 
               <TextInput
-                label="Secondary Formula / Ingredients"
+                label={renderLabelWithTooltip(
+                  'Secondary Formula / Ingredients',
+                  'Optionally include additional ingredients, combinations, or notes that support better identification and counseling.'
+                )}
                 placeholder="Optional additional ingredients"
                 value={composition2}
                 onChange={(e) => setComposition2(e.currentTarget.value)}
@@ -580,7 +636,10 @@ export default function InventoryModalForm({
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl">
               <Stack gap="md">
                 <NumberInput
-                  label="Purchase Price / Cost Price (₹)"
+                  label={renderLabelWithTooltip(
+                    'Purchase Price / Cost Price (₹)',
+                    'Enter the amount paid per pack. This is useful for profit analysis and reorder planning.'
+                  )}
                   value={purchasePrice}
                   onChange={setPurchasePrice}
                   min={0}
@@ -588,7 +647,10 @@ export default function InventoryModalForm({
                   styles={getWarningFieldStyles(Number(purchasePrice) <= 0)}
                 />
                 <NumberInput
-                  label="Selling Price to Customer (₹)"
+                  label={renderLabelWithTooltip(
+                    'Selling Price to Customer (₹)',
+                    'Set the actual selling price charged to customers for one pack.'
+                  )}
                   placeholder="Retail rate"
                   required
                   value={sellingPrice}
@@ -599,7 +661,10 @@ export default function InventoryModalForm({
                   styles={getInputStyles(isSellingPriceValid)}
                 />
                 <NumberInput
-                  label="Maximum Retail Price (MRP ₹)"
+                  label={renderLabelWithTooltip(
+                    'Maximum Retail Price (MRP ₹)',
+                    'Enter the printed MRP from the package. This helps ensure the selling price does not exceed legal retail limits.'
+                  )}
                   placeholder="Printed price on pack"
                   required
                   value={mrp}
@@ -613,21 +678,30 @@ export default function InventoryModalForm({
 
               <Stack gap="md">
                 <NumberInput
-                  label="Low Stock Alert Threshold"
+                  label={renderLabelWithTooltip(
+                    'Low Stock Alert Threshold',
+                    'Set the minimum quantity at which this item should be flagged for restocking.'
+                  )}
                   value={alertthreshold}
                   onChange={setAlertThreshold}
                   min={0}
                   styles={getInputStyles(true)}
                 />
                 <TextInput
-                  label="Pack Size (Units inside 1 item)"
+                  label={renderLabelWithTooltip(
+                    'Pack Size (Units inside 1 item)',
+                    'Describe how many units are inside one pack, for example 10 tablets or 100 ml bottle.'
+                  )}
                   placeholder="e.g. 10 Tablets / Strip"
                   value={packsize}
                   onChange={(e) => setPackSize(e.currentTarget.value)}
                   styles={getInputStyles(true)}
                 />
                 <TextInput
-                  label="Storage Location (Shelf / Rack Number)"
+                  label={renderLabelWithTooltip(
+                    'Storage Location (Shelf / Rack Number)',
+                    'Record where this stock is physically stored so staff can locate it quickly during dispensing.'
+                  )}
                   placeholder="e.g. A-12, Row 3"
                   value={shelfrackinfo}
                   onChange={(e) => setshelfrackinfo(e.currentTarget.value)}
@@ -637,7 +711,10 @@ export default function InventoryModalForm({
 
               <Stack gap="md">
                 <Box style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                  <Text size="13px" fw={600} mb="6px" c="#334155">Medicine Package Image</Text>
+                  {renderLabelWithTooltip(
+                    'Medicine Package Image',
+                    'Attach a clear package photo to help visual verification during receiving and dispensing. This area is currently a placeholder.'
+                  )}
                   <Box
                     style={{
                       textAlign: 'center',
