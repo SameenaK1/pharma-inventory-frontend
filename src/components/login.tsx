@@ -42,7 +42,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [countdown, setCountdown] = useState(60);
-
+  const [otpToken, setOtpToken] = useState<string | null>(null);
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -69,6 +69,7 @@ export function LoginPage() {
     }
   }, [form, type]
   );
+
   useEffect(() => {
     // 🌟 Change 'NodeJS.Timeout' to 'any' (or just remove the type entirely)
     let intervalId: any;
@@ -86,19 +87,17 @@ export function LoginPage() {
     if (countdown > 0 || loading) return;
 
     setLoading(true);
-    setSuccessMsg("");
-
     try {
+      // 🌟 Ensure 'const' is present here
       const data = await sendRegistrationOtp(form.values.email);
-      const payload = data && data.data ? data.data : data;
 
+      const payload = data && data.data ? data.data : data;
       if (payload && payload.success === false) {
         throw new Error(payload.error);
       }
 
-      // Success! Reset timer to 60 seconds
+      setOtpToken(payload.token); // If using the stateless crypto method
       setCountdown(60);
-      setSuccessMsg("A new verification code has been sent!");
     } catch (error: any) {
       form.setFieldError('otp', error.message || 'Failed to resend OTP.');
     } finally {
@@ -128,23 +127,42 @@ export function LoginPage() {
         finalizeAuth(data, values.email);
       }
       // --- FLOW 2: SEND OTP ---
-      else if (type === 'register_email') {
-        data = await sendRegistrationOtp(values.email);
-        const payload = data && data.data ? data.data : data;
-        if (payload && payload.success === false) throw new Error(payload.error);
+    // --- STEP 1: Sending Email ---
+if (type === 'register_email') {
+  const data = await sendRegistrationOtp(values.email);
+  const payload = data && data.data ? data.data : data;
 
-        setCountdown(60); // 🌟 Reset clock to 60 when moving to OTP step
-        setType('register_otp');
-      }
-      // --- FLOW 3: VERIFY OTP ---
-      else if (type === 'register_otp') {
-        data = await verifyRegistrationOtp(values.email, values.otp);
-        const payload = data && data.data ? data.data : data;
-        if (payload && payload.success === false) throw new Error(payload.error);
+  if (payload && payload.success === false) throw new Error(payload.error);
 
-        setSuccessMsg("Email verified! Let's finish your profile.");
-        setType('register_details');
-      }
+  // 🔍 DEBUG LOG 1: Check if the backend actually sent a token back
+  console.log("RECEIVED TOKEN FROM BACKEND:", payload.token);
+
+  setOtpToken(payload.token); // Save token in React state
+  setCountdown(60);
+  setType('register_otp');
+} 
+
+// --- STEP 2: Verifying Code ---
+else if (type === 'register_otp') {
+  // 🔍 DEBUG LOG 2: Check what we are sending to the verify endpoint
+  console.log("SENDING TO VERIFY:", {
+    email: values.email,
+    otp: values.otp,
+    token: otpToken
+  });
+
+  const data = await verifyRegistrationOtp(
+    values.email,
+    values.otp,
+    otpToken
+  );
+
+  const payload = data && data.data ? data.data : data;
+  if (payload && payload.success === false) throw new Error(payload.error);
+
+  setOtpToken(null);
+  setType('register_details');
+}
       // --- FLOW 4: FINALIZE REGISTRATION ---
       else if (type === 'register_details') {
         data = await finalizeRegistration({
@@ -159,7 +177,7 @@ export function LoginPage() {
       }
 
     } catch (error: any) {
-      // Catches the thrown error message and attaches it to the input field on your page
+
       const errorMessage = error.message || 'Server connection lost. Please try again.';
 
       if (type === 'register_otp') {
@@ -176,9 +194,10 @@ export function LoginPage() {
   }, [type, navigate, dispatch, form]
   );
 
-  const finalizeAuth = (data: any, email: string) => {
-    const authPayload = { username: data.username || email.split('@')[0], token: data.token };
-    localStorage.setItem('user', JSON.stringify(authPayload));
+  const finalizeAuth = (payload: any, email: string) => {
+    const authPayload = { username: payload.username || email.split('@')[0], token: payload.token }; +
+
+      localStorage.setItem('user', JSON.stringify(authPayload));
     dispatch({ type: 'LOGIN', payload: authPayload });
     setTimeout(() => navigate('/dashboard'), 1500);
   };
@@ -187,8 +206,6 @@ export function LoginPage() {
     form.reset();
     setType((prev) => (prev === 'login' ? 'register_email' : 'login'));
   }, [form]);
-
-  // Google OAuth logic omitted for brevity, keep yours intact!
 
   return (
     <Box className={classes.clinicalGradient}>

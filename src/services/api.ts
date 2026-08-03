@@ -213,23 +213,10 @@ export interface LoginPayload {
 export interface AuthResponse {
   username: string;
   token: string;
-  error?: string;
+  error?: string; 
 }
 
-// 🌟 2. Register (Insert) User API Call
-export const registerUser = async (data: RegisterPayload): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/user/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
 
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(body.error || 'Registration failed');
-  }
-  return body;
-};
 export const sendRegistrationOtp = async (email: string) => {
   const response = await fetch(`${API_BASE_URL}/user/send-otp`, {
     method: "POST",
@@ -240,14 +227,16 @@ export const sendRegistrationOtp = async (email: string) => {
   if (!response.ok) throw new Error(data.error || "Failed to send OTP");
   return data;
 };
-export const verifyRegistrationOtp = async (email: string, otp: string) => {
+export const verifyRegistrationOtp = async (email: string, otp: string, token: string | null) => {
   const response = await fetch(`${API_BASE_URL}/user/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({email, 
+    otp, 
+    token }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Invalid OTP");
+   if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
   return data;
 };
 
