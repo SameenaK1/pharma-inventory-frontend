@@ -26,6 +26,21 @@ const rawApiBaseUrl =
 
 export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
+  if (!trimmed) {
+    return 'http://localhost:8080';
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+};
+
+const rawApiBaseUrl =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) ||
+  'http://127.0.0.1:8080';
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
+
+// 🌟 Shared Auth Header Helper
 const getAuthHeaders = (): HeadersInit => {
   if (typeof window === 'undefined') return {};
 
@@ -33,11 +48,12 @@ const getAuthHeaders = (): HeadersInit => {
   if (!userStr) return {};
 
   try {
-    const user = JSON.parse(userStr) as { token?: string };
-    if (!user?.token) return {};
+    const user = JSON.parse(userStr);
+    const token = user?.token || user?.accessToken || user?.jwt;
+    if (!token) return {};
 
     return {
-      Authorization: `Bearer ${user.token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     };
   } catch (e) {
@@ -45,6 +61,27 @@ const getAuthHeaders = (): HeadersInit => {
     return {};
   }
 };
+
+// 🔒 Centralized Response Handler (Intercepts 401 Unauthorized globally)
+const handleResponse = async (response: Response) => {
+  if (response.status === 401) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user'); // Clear stale session
+      
+      // Redirect to root '/' to avoid 404 pages on invalid routes like '/login'
+      if (window.location.pathname !== '/') {
+        window.location.href = '/'; 
+      }
+    }
+    throw new Error('Session expired or unauthorized. Please log in again.');
+  }
+  return response;
+};
+
+// ----------------------------------------------------
+// Type Definitions
+// ----------------------------------------------------
+
 export interface Medicine {
   id: number;
   name: string;
@@ -65,6 +102,7 @@ export interface MedicineApiResponse {
     total: number;
   };
 }
+
 export interface Manufacturer {
   id: number;
   name: string;
@@ -89,6 +127,7 @@ export interface InventoryItem {
   insertdate: string;
   updatedate: string;
 }
+
 export interface UserProfile {
   id: string; // UUID from database
   username: string;
@@ -107,49 +146,6 @@ export interface UserProfileResponse {
   error?: string;
 }
 
-// 🌟 2. The Fetch Function
-export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
-  const response = await fetch(`${API_BASE_URL}/user/profile`, {
-    method: 'GET',
-    headers: getAuthHeaders(), // Sends the JWT token!
-  });
-
-  const body = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(body.error || 'Failed to fetch user profile');
-  }
-
-  return body;
-};
-
-export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
-  if (!name.trim()) {
-    throw new Error('Search term is required');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch medicine data');
-  }
-
-  return response.json();
-};
-
-export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
-  if (!name.trim()) {
-    throw new Error('Search term is required');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch manufacturer data');
-  }
-
-  return response.json();
-};
-
-// Shape of a single row returned by GET /inventory/get-inventory (maps 1:1 to pharma.inventory columns)
 export interface InventoryRecord {
   id: number;
   name: string;
@@ -197,6 +193,7 @@ export interface InventoryListResponse {
     hasPrev: boolean;
   };
 }
+
 export interface RegisterPayload {
   role: string;
   fullname: string;
@@ -252,7 +249,9 @@ export const finalizeRegistration = async (userData: any) => {
   return data;
 };
 
-// 🌟 3. Login User API Call
+// Alias export to prevent Vite import errors if components request registerUser
+export const registerUser = finalizeRegistration;
+
 export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/user/login`, {
     method: 'POST',
@@ -267,23 +266,84 @@ export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   return body;
 };
 
+// ----------------------------------------------------
+// Protected Endpoints (Auth Required & 401 Intercepted)
+// ----------------------------------------------------
+
+export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
+  const res = await fetch(`${API_BASE_URL}/user/profile`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const response = await handleResponse(res);
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body.error || 'Failed to fetch user profile');
+  }
+
+  return body;
+};
+
+export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
+  if (!name.trim()) {
+    throw new Error('Search term is required');
+  }
+
+  const res = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const response = await handleResponse(res);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch medicine data');
+  }
+
+  return response.json();
+};
+
+export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
+  if (!name.trim()) {
+    throw new Error('Search term is required');
+  }
+
+  const res = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const response = await handleResponse(res);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch manufacturer data');
+  }
+
+  return response.json();
+};
+
 export const getInventoryList = async (params: InventoryListParams = {}): Promise<InventoryListResponse> => {
   const query = new URLSearchParams();
 
-  // 1. Map parameters to query string
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       query.set(key, String(value));
     }
   });
 
-  const response = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`);
+  const res = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const response = await handleResponse(res);
 
   const body: InventoryListResponse = await response
     .json()
     .catch(() => ({} as InventoryListResponse));
 
-  // FIXED: Cleaned up the triple-duplicated error check blocks
   if (!response.ok && response.status !== 404) {
     throw new Error(
       body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
@@ -297,11 +357,11 @@ export const addInventory = async (item: InventoryItem): Promise<{ success: bool
 
   const response = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(item), // Changed from payload to item
+    headers: getAuthHeaders(),
+    body: JSON.stringify(item),
   });
+
+  const response = await handleResponse(res);
 
   if (!response.ok) {
     try {
@@ -318,7 +378,12 @@ export const addInventory = async (item: InventoryItem): Promise<{ success: bool
 
 export const deleteInventoryItem = async ({ id, ...params }: { id: number | string; user: string; reason: string }): Promise<void> => {
   const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, { method: 'DELETE' });
+  const res = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, { 
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  const response = await handleResponse(res);
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
