@@ -9,7 +9,22 @@ declare global {
   }
 }
 
-export const API_BASE_URL = (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) || 'http://localhost:8080';
+const normalizeApiBaseUrl = (value: string) => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+
+  if (!trimmed) {
+    return 'http://localhost:8080';
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+};
+
+const rawApiBaseUrl =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) ||
+  'http://127.0.0.1:8080';
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
 // 🌟 Shared Auth Header Helper
 const getAuthHeaders = (): HeadersInit => {
@@ -33,16 +48,26 @@ const getAuthHeaders = (): HeadersInit => {
   }
 };
 
+// 🔒 Centralized Response Handler (Intercepts 401 Unauthorized globally)
 const handleResponse = async (response: Response) => {
   if (response.status === 401) {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('user'); // Clear stale token/session
-      window.location.href = '/'; // Redirect immediately to login screen
+      localStorage.removeItem('user'); // Clear stale session
+      
+      // Redirect to root '/' to avoid 404 pages on invalid routes like '/login'
+      if (window.location.pathname !== '/') {
+        window.location.href = '/'; 
+      }
     }
     throw new Error('Session expired or unauthorized. Please log in again.');
   }
   return response;
 };
+
+// ----------------------------------------------------
+// Type Definitions
+// ----------------------------------------------------
+
 export interface Medicine {
   id: number;
   name: string;
@@ -171,13 +196,9 @@ export interface LoginPayload {
 export interface AuthResponse {
   username: string;
   token: string;
-  error?: string;
+  error?: string; 
 }
 
-<<<<<<< Updated upstream
-// 🌟 2. Register (Insert) User API Call
-export const registerUser = async (data: RegisterPayload): Promise<AuthResponse> => {
-=======
 // ----------------------------------------------------
 // Public Endpoints (No Auth Required)
 // ----------------------------------------------------
@@ -205,19 +226,18 @@ export const verifyRegistrationOtp = async (email: string, otp: string, token: s
 };
 
 export const finalizeRegistration = async (userData: any) => {
->>>>>>> Stashed changes
   const response = await fetch(`${API_BASE_URL}/user/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(userData),
   });
-
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(body.error || 'Registration failed');
-  }
-  return body;
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Registration failed");
+  return data;
 };
+
+// Alias export to prevent Vite import errors if components request registerUser
+export const registerUser = finalizeRegistration;
 
 export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/user/login`, {
@@ -234,7 +254,7 @@ export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
 };
 
 // ----------------------------------------------------
-// Protected Endpoints (Auth Required)
+// Protected Endpoints (Auth Required & 401 Intercepted)
 // ----------------------------------------------------
 
 export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
@@ -264,6 +284,7 @@ export const getMedicineByName = async (name: string): Promise<MedicineApiRespon
   });
 
   const response = await handleResponse(res);
+
   if (!response.ok) {
     throw new Error('Failed to fetch medicine data');
   }
@@ -282,6 +303,7 @@ export const getManufacturerName = async (name: string): Promise<{ success: bool
   });
 
   const response = await handleResponse(res);
+
   if (!response.ok) {
     throw new Error('Failed to fetch manufacturer data');
   }
@@ -304,6 +326,7 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
   });
 
   const response = await handleResponse(res);
+
   const body: InventoryListResponse = await response
     .json()
     .catch(() => ({} as InventoryListResponse));
@@ -318,18 +341,14 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
 };
 
 export const addInventory = async (item: InventoryItem): Promise<{ success: boolean; message: string }> => {
-<<<<<<< Updated upstream
-  
-  const response = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
-=======
- const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
->>>>>>> Stashed changes
+  const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(item),
   });
 
   const response = await handleResponse(res);
+
   if (!response.ok) {
     try {
       const errorData = await response.json();
