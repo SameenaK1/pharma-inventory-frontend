@@ -26,6 +26,20 @@ const rawApiBaseUrl =
 
 export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
+  if (!trimmed) {
+    return 'http://localhost:8080';
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+};
+
+const rawApiBaseUrl =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) ||
+  'http://127.0.0.1:8080';
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
+
 // 🌟 Shared Auth Header Helper
 const getAuthHeaders = (): HeadersInit => {
   if (typeof window === 'undefined') return {};
@@ -199,9 +213,6 @@ export interface AuthResponse {
   error?: string; 
 }
 
-// ----------------------------------------------------
-// Public Endpoints (No Auth Required)
-// ----------------------------------------------------
 
 export const sendRegistrationOtp = async (email: string) => {
   const response = await fetch(`${API_BASE_URL}/user/send-otp`, {
@@ -213,18 +224,20 @@ export const sendRegistrationOtp = async (email: string) => {
   if (!response.ok) throw new Error(data.error || "Failed to send OTP");
   return data;
 };
-
 export const verifyRegistrationOtp = async (email: string, otp: string, token: string | null) => {
   const response = await fetch(`${API_BASE_URL}/user/verify-otp`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, otp, token }),
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({email, 
+    otp, 
+    token }),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
+   if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
   return data;
 };
 
+// 4. Step 3 of Registration: Create the actual account
 export const finalizeRegistration = async (userData: any) => {
   const response = await fetch(`${API_BASE_URL}/user/register`, {
     method: "POST",
@@ -341,7 +354,8 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
 };
 
 export const addInventory = async (item: InventoryItem): Promise<{ success: boolean; message: string }> => {
-  const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
+
+  const response = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(item),
