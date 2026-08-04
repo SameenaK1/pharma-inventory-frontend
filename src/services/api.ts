@@ -26,21 +26,6 @@ const rawApiBaseUrl =
 
 export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
-  if (!trimmed) {
-    return 'http://localhost:8080';
-  }
-
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-};
-
-const rawApiBaseUrl =
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.process?.env?.REACT_APP_API_URL) ||
-  'http://127.0.0.1:8080';
-
-export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
-
-// 🌟 Shared Auth Header Helper
 const getAuthHeaders = (): HeadersInit => {
   if (typeof window === 'undefined') return {};
 
@@ -51,7 +36,6 @@ const getAuthHeaders = (): HeadersInit => {
     const user = JSON.parse(userStr);
     const token = user?.token || user?.accessToken || user?.jwt;
     if (!token) return {};
-
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -61,27 +45,16 @@ const getAuthHeaders = (): HeadersInit => {
     return {};
   }
 };
-
-// 🔒 Centralized Response Handler (Intercepts 401 Unauthorized globally)
 const handleResponse = async (response: Response) => {
   if (response.status === 401) {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('user'); // Clear stale session
-      
-      // Redirect to root '/' to avoid 404 pages on invalid routes like '/login'
-      if (window.location.pathname !== '/') {
-        window.location.href = '/'; 
-      }
+      localStorage.removeItem('user'); // Clear stale token/session
+      window.location.href = '/'; // Redirect immediately to login screen
     }
     throw new Error('Session expired or unauthorized. Please log in again.');
   }
   return response;
 };
-
-// ----------------------------------------------------
-// Type Definitions
-// ----------------------------------------------------
-
 export interface Medicine {
   id: number;
   name: string;
@@ -102,7 +75,6 @@ export interface MedicineApiResponse {
     total: number;
   };
 }
-
 export interface Manufacturer {
   id: number;
   name: string;
@@ -127,7 +99,6 @@ export interface InventoryItem {
   insertdate: string;
   updatedate: string;
 }
-
 export interface UserProfile {
   id: string; // UUID from database
   username: string;
@@ -193,7 +164,6 @@ export interface InventoryListResponse {
     hasPrev: boolean;
   };
 }
-
 export interface RegisterPayload {
   role: string;
   fullname: string;
@@ -210,7 +180,7 @@ export interface LoginPayload {
 export interface AuthResponse {
   username: string;
   token: string;
-  error?: string; 
+  error?: string;
 }
 
 
@@ -226,14 +196,16 @@ export const sendRegistrationOtp = async (email: string) => {
 };
 export const verifyRegistrationOtp = async (email: string, otp: string, token: string | null) => {
   const response = await fetch(`${API_BASE_URL}/user/verify-otp`, {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({email, 
-    otp, 
-    token }),
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      otp,
+      token
+    }),
   });
   const data = await response.json();
-   if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
+  if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
   return data;
 };
 
@@ -249,9 +221,7 @@ export const finalizeRegistration = async (userData: any) => {
   return data;
 };
 
-// Alias export to prevent Vite import errors if components request registerUser
-export const registerUser = finalizeRegistration;
-
+// 🌟 3. Login User API Call
 export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/user/login`, {
     method: 'POST',
@@ -265,11 +235,6 @@ export const loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   }
   return body;
 };
-
-// ----------------------------------------------------
-// Protected Endpoints (Auth Required & 401 Intercepted)
-// ----------------------------------------------------
-
 export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
   const res = await fetch(`${API_BASE_URL}/user/profile`, {
     method: 'GET',
@@ -355,14 +320,12 @@ export const getInventoryList = async (params: InventoryListParams = {}): Promis
 
 export const addInventory = async (item: InventoryItem): Promise<{ success: boolean; message: string }> => {
 
-  const response = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
+  const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(item),
+    body: JSON.stringify(item), // Changed from payload to item
   });
-
   const response = await handleResponse(res);
-
   if (!response.ok) {
     try {
       const errorData = await response.json();
@@ -378,7 +341,7 @@ export const addInventory = async (item: InventoryItem): Promise<{ success: bool
 
 export const deleteInventoryItem = async ({ id, ...params }: { id: number | string; user: string; reason: string }): Promise<void> => {
   const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, { 
+  const res = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
