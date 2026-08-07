@@ -1,184 +1,121 @@
-# Feature Specification: Efficient Authentication State Management
+## Executive Summary & Scope
 
-## 1. Executive Summary & Scope
-
-### Summary
-The app currently persists the authenticated user payload, including the JWT token, in `localStorage`. That works, but it is not the current best practice for SPA auth because `localStorage` is readable by JavaScript and increases the impact of XSS.
-
-The recommended approach is:
-- keep the access token short-lived and out of persistent browser storage
-- store refresh/session credentials in `HttpOnly`, `Secure`, `SameSite` cookies when backend support exists
-- keep only non-sensitive user profile data in React state or a global client store
-- rehydrate the app by calling a profile/session endpoint on startup
-
-This feature updates the app to use a safer auth-state model while preserving the existing login, logout, and protected-route behavior.
+This feature migrates authenticated user state from ad-hoc `localStorage` persistence and component-level reducer state to TanStack Query. The goal is to treat the authenticated user profile as server state, centralize auth-related fetching and invalidation, and remove the current pattern of storing the full user object with JWT in browser storage.
 
 ### In scope
-- Replace `localStorage`-driven auth state as the primary source of truth
-- Introduce a centralized auth store for the current user profile
-- Hydrate auth state on app boot from the backend session/profile endpoint
-- Keep protected routes and redirects working during refresh and navigation
-- Define loading, error, and unauthorized states for auth bootstrapping
-- Preserve the existing `username` + `token` compatibility only as a short migration path if needed
+
+- Introduce TanStack Query (`@tanstack/react-query`) and wire a shared `QueryClientProvider`.
+- Replace `AuthContext` storage responsibilities with query-driven session state.
+- Fetch the signed-in user profile from `GET /user/profile` and cache it as the source of truth.
+- Update login/logout flows to seed, refresh, invalidate, and clear auth-related queries.
+- Gate protected routes on query state instead of `localStorage` hydration.
+- Add loading, error, and unauthorized states for auth bootstrap and profile refresh.
+- Define a staged migration path from legacy storage-based auth to query-driven auth.
 
 ### Out of scope
-- Full backend identity redesign
-- Passwordless auth, MFA, or SSO
-- Role/permission system redesign beyond current user profile fields
-- Audit logging, account management, or token revocation UI
-- Rewriting unrelated inventory or dashboard flows
 
-## 2. User Stories & Acceptance Criteria
+- Backend redesign of auth to cookies, refresh tokens, or OAuth flows.
+- Rebuilding the existing login/register UX beyond auth state wiring.
+- Changing inventory, medicine search, or dashboard data-fetching behavior.
+- Introducing Redux, Zustand, or any second client-state library.
+- Persisting sensitive auth data in new browser storage locations as the final target.
 
-### Story 1
-**As an authenticated user, I want my session to restore automatically after refresh so that I do not need to sign in again every time.**
+## Architecture & Component Design
 
-Acceptance criteria:
-- On app load, the client checks the session/profile endpoint before showing protected content
-- While the session is being checked, protected routes show a loading state instead of flashing the login page
-- If the session is valid, the user is restored into global auth state
-- If the session is invalid or expired, the user is redirected to `/`
-- Network failures show a retryable error state, not a blank screen
+### Proposed component / hook hierarchy
 
-### Story 2
-**As a user, I want my authentication data kept out of persistent browser storage so that my account is safer against client-side attacks.**
+```text
+main.tsx
+└─ QueryClientProvider
+   └─ AuthSessionProvider (thin bridge, optional during migration)
+      └─ App
+         ├─ PublicRoute/LoginPage
+         └─ ProtectedRoute
+            ├─ AuthBootstrapGate
+            └─ AppLayout
+               └─ Outlet
+```
 
-Acceptance criteria:
-- The primary auth state is stored in memory through a global store/context
-- Sensitive token data is not stored in `localStorage`
-- If a cookie-based session is available, it is managed by the browser and not exposed to JavaScript
-- Any temporary fallback storage is non-sensitive and explicitly time-limited
-- Logout clears all client auth state immediately
+### Responsibilities
 
-### Story 3
-**As a returning user, I want protected pages to stay accessible only when authenticated so that private data is not exposed.**
+- `QueryClientProvider`: owns global cache, retry, and stale-time defaults.
+- `useCurrentUserQuery`: fetches `/user/profile` and exposes auth session state.
+- `useLoginMutation`: calls `/user/login`, seeds the user cache, and transitions into the app.
+- `useLogoutMutation`: clears query cache and navigates back to `/`.
+- `ProtectedRoute`: checks query status instead of reading from `localStorage`.
+- `AuthBootstrapGate`: renders a full-page loading state while auth state is being resolved.
+- `LoginPage`: remains mostly presentational, but consumes auth mutations instead of dispatching storage-backed state.
 
-Acceptance criteria:
-- Protected routes wait for auth initialization before deciding redirect vs render
-- Unauthenticated users are redirected to `/`
-- Authenticated users can access `/dashboard`, `/inventory`, and `/addmedicine`
-- Expired sessions force a safe logout flow
-- Route guards do not depend on stale `localStorage` values
+### Key props, state, and hooks
 
-### Story 4
-**As a logged-in user, I want my profile information available across the app so that the header, sidebar, and API calls can use the same source of truth.**
+- `useCurrentUserQuery()`
+  - Returns `data`, `isLoading`, `isFetching`, `error`, `isError`, `isSuccess`.
+  - Uses query key `['auth', 'me']`.
+- `useLoginMutation()`
+  - Input: `{ email, password }`
+  - On success: store token in the auth transport layer, then `invalidateQueries(['auth', 'me'])`.
+- `useLogoutMutation()`
+  - Clears auth cache and any transient token holder, then `removeQueries(['auth'])`.
+- `AuthSessionProvider`
+  - Optional adapter for incremental migration.
+  - May expose derived values such as `isAuthenticated`, `user`, and `logout`.
 
-Acceptance criteria:
-- The header can read the current user from the auth store
-- The sidebar can show identity-dependent UI without extra fetches
-- Inventory/API calls can attach auth credentials consistently
-- User profile data updates centrally after login or session refresh
-- Missing profile fields degrade gracefully
+## Data Flow & State Management
 
-### Story 5
-**As a user who signs out, I want my session removed immediately so that the app does not keep me authenticated accidentally.**
+### Local state vs global state
 
-Acceptance criteria:
-- Logout clears auth state from memory
-- Any persisted non-sensitive cache is cleared or invalidated
-- Protected routes redirect to `/`
-- The next app load starts unauthenticated unless a valid session still exists server-side
-- Logout handles repeated clicks without breaking navigation
+- **Local state**
+  - Form inputs, password visibility, OTP countdown, and transient UI toggles.
+  - Modal state for login/register steps.
+- **Global/server state**
+  - Signed-in user profile.
+  - Auth bootstrap status.
+  - Session validity and 401 handling.
 
-## 3. Architecture & Component Design
+### Target data flow
 
-### Proposed component hierarchy
-- `App`
-  - `AuthProvider`
-    - `AuthBootstrapper`
-    - `ProtectedRoute`
-    - `AppLayout`
-      - `Header`
-      - `Sidebar`
-      - `Outlet`
-  - `LoginPage`
-  - `Dashboard`
-  - `Inventory`
-  - `AddMedicine`
-
-### Smart vs presentational split
-- **Smart/container**
-  - `AuthProvider`
-  - `AuthBootstrapper`
-  - `ProtectedRoute`
-  - `LoginPage`
-- **Presentational**
-  - `Header`
-  - `Sidebar`
-  - existing dashboard/inventory UI blocks
-
-### Auth store responsibilities
-- hold `user`, `status`, `error`, and `initialized`
-- expose `login()`, `logout()`, `refreshSession()`, and `clearAuthError()`
-- own boot-time session hydration
-- provide a single source of truth for route guards and UI chrome
-
-### Hook definitions
-- `useAuth()`
-  - returns auth state and actions
-- `useAuthBootstrap()`
-  - runs the initial session/profile check
-- `useSessionQuery()` or equivalent
-  - handles cached server session/profile fetch logic if React Query is introduced
-
-### Suggested props/state
-- `ProtectedRoute`
-  - no props; reads auth state and `initialized`
-- `AuthBootstrapper`
-  - no props; runs once at app start
-- `LoginPage`
-  - local form state, validation, submission loading, field errors
-- `Header`
-  - reads `user` only; no auth logic
-
-## 4. Data Flow & State Management
-
-### State model
-**Local state**
-- form inputs
-- OTP/register steps
-- page-specific sorting, filters, pagination
-- modal visibility
-
-**Global auth state**
-- authenticated user profile
-- auth initialization flag
-- auth error state
-- login/logout actions
-
-### Recommended auth strategy
-Preferred:
-- backend sets refresh/session credential in `HttpOnly Secure SameSite` cookie
-- frontend fetches current user from `/user/profile` or `/auth/me`
-- access token is either short-lived and kept in memory or derived server-side
-
-Transitional option if backend changes are incremental:
-- keep only non-sensitive user profile in React state
-- avoid storing JWT in `localStorage`
-- if persistence is unavoidable during migration, use a short-lived, non-sensitive session flag only
+1. User submits login form.
+2. `useLoginMutation` posts to `POST /user/login`.
+3. Backend returns `{ username, token, ... }`.
+4. Client stores only the minimum required auth credential for API access during the session transition.
+5. `useCurrentUserQuery` fetches `GET /user/profile`.
+6. Query cache becomes the canonical source for user identity across the app.
+7. Protected routes derive access from query state, not from `localStorage`.
+8. Logout clears auth cache and redirects to `/`.
 
 ### API endpoints
-Current endpoints already in use:
-- `POST /user/login`
-- `POST /user/register`
-- `POST /user/send-otp`
-- `POST /user/verify-otp`
-- `GET /user/profile`
 
-Recommended auth bootstrap flow:
-1. app starts
-2. client calls `GET /user/profile`
-3. backend returns the current user if session is valid
-4. client stores the returned profile in auth state
+#### `POST /user/login`
 
-Expected response shape:
+Request:
+
+```json
+{
+  "email": "name@pharmacy.com",
+  "password": "string"
+}
+```
+
+Response:
+
+```json
+{
+  "username": "alex",
+  "token": "jwt-or-session-token"
+}
+```
+
+#### `GET /user/profile`
+
+Response:
+
 ```json
 {
   "success": true,
   "data": {
     "id": "uuid",
     "username": "alex",
-    "email": "alex@pharmacy.com",
+    "email": "name@pharmacy.com",
     "role": "pharmacist",
     "first_name": "Alex",
     "last_name": "Carter",
@@ -189,61 +126,77 @@ Expected response shape:
 }
 ```
 
-### Error handling and loading states
-- bootstrapping state shows a full-page skeleton/spinner
-- unauthorized response clears auth and redirects to `/`
-- network timeout or offline states show a retry action
-- profile fetch failures should not crash the app shell
-- login/register errors stay inline on the form
+### Error and loading strategy
 
-## 5. User Experience & Interaction Flow
+- Show a blocking auth bootstrap loader while the profile query is resolving.
+- Show inline login/register errors from mutation failures.
+- Treat `401` as a hard session reset: clear cache, clear any transient credential, and route to `/`.
+- Retry profile queries conservatively; do not retry on `401` or validation failures.
+- Surface empty/invalid profile payloads as session errors, not silent success.
+
+## User Experience & Interaction Flow
 
 ### User journey
-1. User opens the app
-2. App checks session/profile status in the background
-3. If authenticated, app lands on the protected route with the shell visible
-4. If not authenticated, app shows the login screen
-5. After login, app stores the user profile in global state and navigates to the dashboard
-6. On logout, the app clears state and returns to the public entry screen
 
-### UX requirements
-- no visible “login flash” during boot
-- responsive layout for mobile, tablet, and desktop
-- clear loading feedback for session bootstrap and login submit
-- accessible form controls with labels, helper text, and error messages
-- keyboard navigable login and logout actions
-- route guards should be screen-reader friendly and avoid focus traps
+1. User opens the app.
+2. App bootstraps auth by fetching the current profile.
+3. If authenticated, the user lands in the protected layout immediately.
+4. If not authenticated, the user sees the login/register screen.
+5. After login, the UI transitions only after query state is ready.
+6. Logout returns the user to the public entry screen and clears protected data.
 
-### Accessibility
-- use semantic buttons and inputs
-- ensure all form fields have visible labels
-- surface auth errors with text, not color alone
-- keep focus on the first invalid field after submission
-- preserve tab order in modal and navigation flows
+### Visual and UX requirements
 
-## 6. Implementation Strategy & Task Breakdown
+- Keep the existing Mantine-based layout and styling approach.
+- Use a full-screen loading state during auth bootstrap to avoid route flicker.
+- Keep login/register controls keyboard accessible and focus-visible.
+- Preserve ARIA labels on inputs, buttons, and error messages.
+- Ensure protected layout chrome remains responsive at tablet and mobile widths.
+- Use clear disabled/loading affordances for submit buttons and logout actions.
 
-### Sequential checklist
-1. Define the new auth state shape and bootstrap flags
-2. Refactor `AuthProvider` to own in-memory auth state instead of `localStorage` as source of truth
-3. Add a boot-time session/profile fetch
-4. Update `ProtectedRoute` to wait for auth initialization
-5. Update `LoginPage` to write only to the auth store, not persistent storage
-6. Update `Header`/`Sidebar` consumers to read from the auth store
-7. Remove stale `localStorage` dependency paths or keep only a temporary migration bridge
-8. Add unauthorized-response handling across the API layer
-9. Validate route protection, refresh behavior, and logout flow
-10. Document the backend contract for cookie/session support if required
+## Implementation Strategy & Task Breakdown
 
-### Edge cases
-- backend unavailable on first load
-- expired session after app boot
-- partially migrated users with old `localStorage` auth data
-- malformed stored auth payloads
-- concurrent logout and in-flight requests
-- multiple tabs signing out independently
-- empty or missing user profile fields
-- OTP/login errors during registration flow
+### Phase 1: Foundation
 
-### Recommendation
-The best-practice target is: **do not persist JWTs in `localStorage`; use server-managed session/refresh cookies plus a client-side auth store for the current user profile**. If backend changes must happen in phases, migrate the client state first, then replace token persistence with cookie-based session auth.
+1. Install TanStack Query and add a single `QueryClientProvider` near the app root.
+2. Define query defaults for retries, stale time, and auth-sensitive cache behavior.
+3. Create shared auth query keys and a typed `CurrentUser` model.
+
+### Phase 2: Auth state migration
+
+1. Add `useCurrentUserQuery` to own the `/user/profile` fetch.
+2. Convert login to a mutation that seeds or refreshes the auth query cache.
+3. Replace `AuthContext` storage-backed logic with query-derived session state.
+4. Update `ProtectedRoute` to rely on query status plus a bootstrap gate.
+
+### Phase 3: UX stabilization
+
+1. Add auth loading skeletons and error states.
+2. Preserve redirect behavior after successful login and invalid session handling.
+3. Ensure logout clears all auth-related cache entries.
+4. Remove obsolete `localStorage` reads once the migration is stable.
+
+### Phase 4: Cleanup and hardening
+
+1. Refactor legacy auth helpers out of `authcontext.tsx` if no longer needed.
+2. Verify inventory and other authenticated requests still receive valid headers.
+3. Document the remaining storage strategy, if any, and mark the backend cookie migration as future work.
+
+### Edge cases to account for
+
+- Network failure during bootstrap or login.
+- `401` from `/user/profile` after token expiry.
+- Login success but malformed profile response.
+- Reload during in-flight login mutation.
+- Multiple tabs with stale auth state.
+- Empty profile data or missing token fields.
+- Transition period where legacy storage may still exist.
+
+### Step-by-step migration strategy
+
+1. Introduce TanStack Query without changing auth behavior.
+2. Move only the current-user read path to `useCurrentUserQuery`.
+3. Convert login/logout to query mutations.
+4. Stop using `localStorage` as the source of truth for the signed-in user.
+5. Remove fallback storage reads after the new query flow is proven stable.
+6. If backend support becomes available, move the token transport to an httpOnly cookie and fully eliminate persistent client-side auth storage.
