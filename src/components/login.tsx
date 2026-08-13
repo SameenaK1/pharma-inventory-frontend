@@ -5,7 +5,7 @@ import {
 import { useForm } from '@mantine/form';
 import classes from './login.module.css';
 import { useNavigate } from 'react-router';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../services/authcontext';
 
 import { loginUser, sendRegistrationOtp, verifyRegistrationOtp, finalizeRegistration } from '../services/api';
 
@@ -36,9 +36,10 @@ const PharmaIcon = () => (
 );
 
 export function LoginPage() {
+  const { login } = useAuth();
+  const { register } = useAuth();
   const [type, setType] = useState<AuthMode>('login');
   const navigate = useNavigate();
-  const { dispatch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [countdown, setCountdown] = useState(60);
@@ -114,66 +115,60 @@ export function LoginPage() {
 
       // --- FLOW 1: LOGIN ---
       if (type === 'login') {
-        data = await loginUser({ email: values.email, password: values.password });
+        await login({ email: values.email, password: values.password });
 
-        // Safely extract the payload whether Axios wrapped it in .data or not
-        const payload = data && data.data ? data.data : data;
-
-        // If the backend says validation failed, pass the text to the catch block
-        if (payload && payload.success === false) {
-          throw new Error(payload.error || "Incorrect password");
-        }
-
-        finalizeAuth(data, values.email);
+        // Cookie is automatically set by the browser. Just navigate!
+        navigate('/dashboard');
       }
       // --- FLOW 2: SEND OTP ---
-    // --- STEP 1: Sending Email ---
-if (type === 'register_email') {
-  const data = await sendRegistrationOtp(values.email);
-  const payload = data && data.data ? data.data : data;
+      // --- STEP 1: Sending Email ---
+      if (type === 'register_email') {
+        const data = await sendRegistrationOtp(values.email);
+        const payload = data && data.data ? data.data : data;
 
-  if (payload && payload.success === false) throw new Error(payload.error);
+        if (payload && payload.success === false) throw new Error(payload.error);
 
-  // 🔍 DEBUG LOG 1: Check if the backend actually sent a token back
-  console.log("RECEIVED TOKEN FROM BACKEND:", payload.token);
+        // 🔍 DEBUG LOG 1: Check if the backend actually sent a token back
+        console.log("RECEIVED TOKEN FROM BACKEND:", payload.token);
 
-  setOtpToken(payload.token); // Save token in React state
-  setCountdown(60);
-  setType('register_otp');
-} 
+        setOtpToken(payload.token); // Save token in React state
+        setCountdown(60);
+        setType('register_otp');
+      }
 
-// --- STEP 2: Verifying Code ---
-else if (type === 'register_otp') {
-  // 🔍 DEBUG LOG 2: Check what we are sending to the verify endpoint
-  console.log("SENDING TO VERIFY:", {
-    email: values.email,
-    otp: values.otp,
-    token: otpToken
-  });
-
-  const data = await verifyRegistrationOtp(
-    values.email,
-    values.otp,
-    otpToken
-  );
-
-  const payload = data && data.data ? data.data : data;
-  if (payload && payload.success === false) throw new Error(payload.error);
-
-  setOtpToken(null);
-  setType('register_details');
-}
-      // --- FLOW 4: FINALIZE REGISTRATION ---
-      else if (type === 'register_details') {
-        data = await finalizeRegistration({
-          role: values.role, fullname: values.fullname, username: values.username,
-          email: values.email, password: values.password
+      // --- STEP 2: Verifying Code ---
+      else if (type === 'register_otp') {
+        // 🔍 DEBUG LOG 2: Check what we are sending to the verify endpoint
+        console.log("SENDING TO VERIFY:", {
+          email: values.email,
+          otp: values.otp,
+          token: otpToken
         });
+
+        const data = await verifyRegistrationOtp(
+          values.email,
+          values.otp,
+          otpToken
+        );
+
         const payload = data && data.data ? data.data : data;
         if (payload && payload.success === false) throw new Error(payload.error);
 
+        setOtpToken(null);
+        setType('register_details');
+      }
+      // --- FLOW 4: FINALIZE REGISTRATION ---
+      else if (type === 'register_details') {
+        await register({
+          role: values.role,
+          fullname: values.fullname,
+          username: values.username,
+          email: values.email,
+          password: values.password
+        });
         setSuccessMsg("Account created successfully!");
-        finalizeAuth(data, values.email);
+        // Context state is updated, cookie is set. Just navigate!
+        navigate('/dashboard');
       }
 
     } catch (error: any) {
@@ -191,16 +186,15 @@ else if (type === 'register_otp') {
     } finally {
       setLoading(false);
     }
-  }, [type, navigate, dispatch, form]
-  );
+  }, [type, navigate, form, otpToken, login, register]);
 
-  const finalizeAuth = (payload: any, email: string) => {
-    const authPayload = { username: payload.username || email.split('@')[0], token: payload.token }; +
+  // const finalizeAuth = (payload: any, email: string) => {
+  //   const authPayload = { username: payload.username || email.split('@')[0], token: payload.token }; +
 
-      localStorage.setItem('user', JSON.stringify(authPayload));
-    dispatch({ type: 'LOGIN', payload: authPayload });
-    setTimeout(() => navigate('/dashboard'), 1500);
-  };
+  //     localStorage.setItem('user', JSON.stringify(authPayload));
+  //   dispatch({ type: 'LOGIN', payload: authPayload });
+  //   setTimeout(() => navigate('/dashboard'), 1500);
+  // };
 
   const toggleAuthMode = useCallback(() => {
     form.reset();
