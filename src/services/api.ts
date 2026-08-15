@@ -30,19 +30,13 @@ const getHeaders = (): HeadersInit => {
     'Content-Type': 'application/json',
   };
 };
-export const handleResponse = async (res: Response) => {
+ const handleResponse = async (res: Response) => {
   if (res.status === 401) {
     window.location.href = '/';
     throw new Error('Unauthorized: Session expired or invalid token');
   }
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    if (data.error === "Unauthorized: Invalid or expired token" || data.error?.includes("Unauthorized")) {
-      window.location.href = '/';
-    }
-    throw new Error(data.error || 'API Request Failed');
-  }
-  return data;
+ 
+  return res;
 };
 export interface Medicine {
   id: number;
