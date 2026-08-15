@@ -5,7 +5,38 @@ import { useNavigate } from 'react-router';
 
 export default function Header() {
   const { logout } = useAuth();
-   const navigate = useNavigate();
+  const navigate = useNavigate();
+
+  const getCookieValue = (cookieName: string) => {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${cookieName}=([^;]*)`));
+    return match ? match[1] : '';
+  };
+
+  const getUserFromCookie = () => {
+    const rawCookie = getCookieValue('user');
+    if (!rawCookie) return { username: 'Not Found', role: 'Unknown' };
+
+    try {
+      const parsed = JSON.parse(decodeURIComponent(rawCookie));
+      return {
+        username: parsed.username || 'Not Found',
+        role: parsed.role || 'Unknown',
+      };
+    } catch {
+      try {
+        const parsed = JSON.parse(rawCookie);
+        return {
+          username: parsed.username || 'Not Found',
+          role: parsed.role || 'Unknown',
+        };
+      } catch {
+        return { username: 'Not Found', role: 'Unknown' };
+      }
+    }
+  };
+
+  const user = getUserFromCookie();
+
   const handleClearSession = () => {
     logout();            // Triggers complete token destruction
     navigate('/');  // Immediately redirects to the login screen
@@ -70,9 +101,9 @@ export default function Header() {
         <Text size="sm" fw={700} c="gray.9" style={{ letterSpacing: '0.5px' }}>
           INVENTORY MANAGEMENT
         </Text>
-        
+
         <div className="context-vertical-line" />
-        
+
         <Text size="xs" fw={600} c="blue.6" style={{ letterSpacing: '0.5px', textTransform: 'uppercase' }}>
           Central Hub
         </Text>
@@ -96,10 +127,10 @@ export default function Header() {
 
               <Box style={{ display: 'block' }}>
                 <Text size="sm" fw={600} c="gray.8" style={{ lineHeight: 1 }}>
-                  Admin Depot
+                  {user.username}
                 </Text>
                 <Text size="xs" c="dimmed" mt={3}>
-                  Super Admin
+                  {user.role}
                 </Text>
               </Box>
 
