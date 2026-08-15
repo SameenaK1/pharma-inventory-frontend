@@ -133,6 +133,7 @@ export interface InventoryListParams {
   name?: string;
   search?: string;
   manufacturer_name?: string;
+  batch_number?: string;
   type?: string;
   composition1?: string;
   composition2?: string;

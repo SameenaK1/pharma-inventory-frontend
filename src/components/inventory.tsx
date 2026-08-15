@@ -40,7 +40,7 @@ const SORT_OPTIONS: { value: SortOption; label: string; description: string }[] 
 
 const NEW_STOCK_THRESHOLD_DAYS = 7;
 const EXPIRY_WARNING_DAYS = 60;
-const TABLE_COLUMN_COUNT = 8;
+const TABLE_COLUMN_COUNT = 9;
 const SKELETON_ROW_COUNT = 6;
 
 function formatExpiryDate(dateStr: string | null): string {
@@ -369,6 +369,7 @@ export default function Inventory() {
                                     <Table.Tr>
                                         <Table.Th>Medicine Name</Table.Th>
                                         <Table.Th>Manufacturer</Table.Th>
+                                        <Table.Th>Batch Number</Table.Th>
                                         <Table.Th>Compound 1</Table.Th>
                                         <Table.Th>Compound 2</Table.Th>
                                         <Table.Th ta="right">Quantity</Table.Th>
@@ -417,7 +418,7 @@ export default function Inventory() {
 
                                                 </Table.Td>
                                                 <Table.Td>{row.manufacturer_name}</Table.Td>
-
+                                                <Table.Td>{row.batch_number || '—'}</Table.Td>
                                                 <Table.Td>{row.composition1 || '—'}</Table.Td>
                                                 <Table.Td>{row.composition2 || '—'}</Table.Td>
                                                 <Table.Td ta="right">{row.stock_quantity}</Table.Td>
