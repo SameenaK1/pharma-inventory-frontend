@@ -11,7 +11,7 @@ import Inventory from './components/inventory';
 import NotFoundPage from './components/notfound';
 
 // 🌟 Ensure your Auth imports are correct based on your file paths
-import { ProtectedRoute } from './services/ProtectedRoute';
+import ProtectedRoute from './services/ProtectedRoute';
 import { AuthProvider } from './services/authcontext'; 
 
 // 1. Create a Layout wrapper for your authenticated pages
