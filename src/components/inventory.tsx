@@ -39,7 +39,6 @@ const SORT_OPTIONS: { value: SortOption; label: string; description: string }[] 
 ];
 
 const NEW_STOCK_THRESHOLD_DAYS = 7;
-const EXPIRY_WARNING_DAYS = 60;
 const TABLE_COLUMN_COUNT = 9;
 const SKELETON_ROW_COUNT = 6;
 
@@ -49,15 +48,6 @@ function formatExpiryDate(dateStr: string | null): string {
     if (Number.isNaN(date.getTime())) return '—';
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
-
-function isExpiringSoon(dateStr: string | null): boolean {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    if (Number.isNaN(date.getTime())) return false;
-    const diffDays = (date.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-    return diffDays >= 0 && diffDays <= EXPIRY_WARNING_DAYS;
-}
-
 function isNewestStock(insertDateStr: string): boolean {
     const date = new Date(insertDateStr);
     if (Number.isNaN(date.getTime())) return false;
@@ -424,10 +414,7 @@ export default function Inventory() {
                                                 <Table.Td ta="right">{row.stock_quantity}</Table.Td>
                                                 <Table.Td>
                                                     <Group gap={4} wrap="nowrap">
-                                                        {isExpiringSoon(row.expiry_date) && (
-                                                            <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
-                                                        )}
-
+                                                    
                                                         {formatExpiryDate(row.expiry_date)}
 
                                                     </Group>
