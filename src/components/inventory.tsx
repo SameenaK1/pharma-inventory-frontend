@@ -423,10 +423,7 @@ export default function Inventory() {
                                                 <Table.Td ta="right">{row.stock_quantity}</Table.Td>
                                                 <Table.Td>
                                                     <Group gap={4} wrap="nowrap">
-                                                        {isExpiringSoon(row.expiry_date) && (
-                                                            <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
-                                                        )}
-
+                                                        
                                                         {formatExpiryDate(row.expiry_date)}
 
                                                     </Group>
