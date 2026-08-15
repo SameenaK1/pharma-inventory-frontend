@@ -31,6 +31,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // REQUIREMENT #3: Bootstrap session state from /user/profile
   const bootstrapAuth = useCallback(async () => {
+    const hasSession = document.cookie.split('; ').some(row => row.startsWith('has_session='));
+
+  // If no session cookie exists, skip calling getCurrentUserProfile completely!
+  if (!hasSession) {
+    setUser(null);
+    setStatus('unauthenticated');
+    return;
+  }
     try {
       const response = await getCurrentUserProfile();
       
