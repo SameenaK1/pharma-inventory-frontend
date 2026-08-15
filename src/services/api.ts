@@ -30,31 +30,19 @@ const getHeaders = (): HeadersInit => {
     'Content-Type': 'application/json',
   };
 };
-// const getAuthHeaders = (): HeadersInit => {
-//   if (typeof window === 'undefined') return {};
-
-//   const userStr = localStorage.getItem('user');
-//   if (!userStr) return {};
-
-//   try {
-//     const user = JSON.parse(userStr);
-//     const token = user?.token || user?.accessToken || user?.jwt;
-//     if (!token) return {};
-//     return {
-//       'Authorization': `Bearer ${token}`,
-//       'Content-Type': 'application/json',
-//     };
-//   } catch (e) {
-//     console.error('Failed to parse auth token', e);
-//     return {};
-//   }
-// };
-const handleResponse = async (response: Response) => {
-  if (response.status === 401) {
-   
-    throw new Error('Incorrect credentials. Please log in again.');
+export const handleResponse = async (res: Response) => {
+  if (res.status === 401) {
+    window.location.href = '/';
+    throw new Error('Unauthorized: Session expired or invalid token');
   }
-  return response;
+  const data = await res.json();
+  if (!res.ok || data.success === false) {
+    if (data.error === "Unauthorized: Invalid or expired token" || data.error?.includes("Unauthorized")) {
+      window.location.href = '/';
+    }
+    throw new Error(data.error || 'API Request Failed');
+  }
+  return data;
 };
 export interface Medicine {
   id: number;
@@ -125,23 +113,6 @@ export interface InventoryItem {
   insertdate: string;
   updatedate: string;
 }
-export interface UserProfile {
-  id: string; // UUID from database
-  username: string;
-  email: string;
-  role: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone_number: string | null;
-  license_number: string | null;
-  status: string;
-}
-
-export interface UserProfileResponse {
-  success: boolean;
-  data?: UserProfile;
-  error?: string;
-}
 
 export interface InventoryRecord {
   id: number;
@@ -208,7 +179,12 @@ export interface AuthResponse {
   token: string;
   error?: string;
 }
-
+export interface AuthResponse {
+  success: boolean;
+  user?: UserProfile;  // <--- ADD THIS LINE
+  error?: string;
+  message?: string;
+}
 
 export const sendRegistrationOtp = async (email: string) => {
   const response = await fetch(`${API_BASE_URL}/user/send-otp`, {
@@ -278,22 +254,22 @@ export const  loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
   }
   return body;
 };
-export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
-  const res = await fetch(`${API_BASE_URL}/user/profile`, {
-    method: 'GET',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
+// export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
+//   const res = await fetch(`${API_BASE_URL}/user/profile`, {
+//     method: 'GET',
+//     headers: getHeaders(),
+//     credentials: 'include',
+//   });
 
-  const response = await handleResponse(res);
-  const body = await response.json().catch(() => ({}));
+//   const response = await handleResponse(res);
+//   const body = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
-    throw new Error(body.error || 'Failed to fetch user profile');
-  }
+//   if (!response.ok) {
+//     throw new Error(body.error || 'Failed to fetch user profile');
+//   }
 
-  return body;
-};
+//   return body;
+// };
 
 export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
   if (!name.trim()) {

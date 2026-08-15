@@ -111,8 +111,7 @@ export function LoginPage() {
     setSuccessMsg("");
 
     try {
-      let data: any;
-
+    
       // --- FLOW 1: LOGIN ---
       if (type === 'login') {
         await login({ email: values.email, password: values.password });
@@ -128,8 +127,6 @@ export function LoginPage() {
 
         if (payload && payload.success === false) throw new Error(payload.error);
 
-        // 🔍 DEBUG LOG 1: Check if the backend actually sent a token back
-        console.log("RECEIVED TOKEN FROM BACKEND:", payload.token);
 
         setOtpToken(payload.token); // Save token in React state
         setCountdown(60);
@@ -138,13 +135,7 @@ export function LoginPage() {
 
       // --- STEP 2: Verifying Code ---
       else if (type === 'register_otp') {
-        // 🔍 DEBUG LOG 2: Check what we are sending to the verify endpoint
-        console.log("SENDING TO VERIFY:", {
-          email: values.email,
-          otp: values.otp,
-          token: otpToken
-        });
-
+     
         const data = await verifyRegistrationOtp(
           values.email,
           values.otp,
