@@ -34,7 +34,7 @@ import {
   getManufacturerName,
   type InventoryItem,
   type Medicine,
-   type Manufacturer
+  type Manufacturer
 } from '../services/api';
 
 // Manufacturer type for type safety
@@ -69,7 +69,7 @@ export default function InventoryModalForm({
   const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
-  const [medicineType, setMedicineType] = useState<string | null>("Allopathy");
+  const [medicineType, setMedicineType] = useState('');
   const [expiryDate, setExpiryDate] = useState<string>('');
 
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
@@ -175,7 +175,7 @@ export default function InventoryModalForm({
     setComposition2(medicine.composition2 || '');
     setPackSize(medicine.pack_size_label || '');
     if (medicine.type) setMedicineType(medicine.type);
-
+    setMedicineType(medicine.type || 'Allopathy'); // Default to 'Allopathy' if type is missing
     // Update both manufacturer states here
     setManufacturer(medicine.manufacturer_name || '');
     setConfirmedManufacturer(medicine.manufacturer_name || '');
@@ -458,35 +458,35 @@ export default function InventoryModalForm({
 
             <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
               <Box>
-              
-                  <Autocomplete
-                    label={renderLabelWithTooltip(
-                      'Medicine Name',
-                      'Type the medicine name to search existing records. Choosing a suggestion auto-fills known details like composition and manufacturer.'
-                    )}
-                    placeholder="Search medicine..."
-                    required
-                    error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
-                    value={medicineName}
-                    onChange={(value) => {
-                      handleMedicineNameChange(value);
-                      const medicine = suggestions.find(med => med.name === value);
-                      if (medicine) {
-                        handleMedicineSelect(medicine);
-                        setLoading(false);
-                        debouncedSearch(value, true);
-                      } else {
-                        debouncedSearch(value, false);
-                      }
-                    }}
-                    data={suggestions.map((med) => ({
-                      value: `${med.name}||id:${med.id}`,
-                      label: med.name
-                    }))}
-                    rightSection={loading ? <Loader size="sm" /> : null}
-                    rightSectionWidth={40}
-                    styles={getInputStyles(isMedicineNameValid)}
-                  />
+
+                <Autocomplete
+                  label={renderLabelWithTooltip(
+                    'Medicine Name',
+                    'Type the medicine name to search existing records. Choosing a suggestion auto-fills known details like composition and manufacturer.'
+                  )}
+                  placeholder="Search medicine..."
+                  required
+                  error={isSubmitted && !isMedicineNameValid ? "Medicine name is required" : null}
+                  value={medicineName}
+                  onChange={(value) => {
+                    handleMedicineNameChange(value);
+                    const medicine = suggestions.find(med => med.name === value);
+                    if (medicine) {
+                      handleMedicineSelect(medicine);
+                      setLoading(false);
+                      debouncedSearch(value, true);
+                    } else {
+                      debouncedSearch(value, false);
+                    }
+                  }}
+                  data={suggestions.map((med) => ({
+                    value: `${med.name}||id:${med.id}`,
+                    label: med.name
+                  }))}
+                  rightSection={loading ? <Loader size="sm" /> : null}
+                  rightSectionWidth={40}
+                  styles={getInputStyles(isMedicineNameValid)}
+                />
                 {/* Show 0 records ONLY when actively searching and no results are returned */}
                 {medicineName.trim() &&
                   !loading &&
@@ -598,7 +598,7 @@ export default function InventoryModalForm({
                 data={['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other']}
                 error={isSubmitted && !isTypeValid ? "Select category" : null}
                 value={medicineType}
-                onChange={setMedicineType}
+                onChange={(value) => setMedicineType(value || '')}
                 styles={getInputStyles(isTypeValid)}
               />
 
