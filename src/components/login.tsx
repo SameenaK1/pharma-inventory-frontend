@@ -5,9 +5,9 @@ import {
 import { useForm } from '@mantine/form';
 import classes from './login.module.css';
 import { useNavigate } from 'react-router';
-import { useAuth } from '../services/authcontext';
+import { useAuth } from '../services/useAuth';
 
-import { loginUser, sendRegistrationOtp, verifyRegistrationOtp, finalizeRegistration } from '../services/api';
+import { sendRegistrationOtp, verifyRegistrationOtp } from '../services/api';
 
 const ROLE_OPTIONS = [
   { label: 'Pharmacist', value: 'pharmacist' },

@@ -103,7 +103,6 @@ export interface InventoryItem {
   sellingprice: number;
   stockalertthreshold: number;
   expirydate: string;
-  username: string;
   insertdate: string;
   updatedate: string;
 }
@@ -176,7 +175,7 @@ export interface AuthResponse {
 }
 export interface AuthResponse {
   success: boolean;
-  user?: UserProfile;  // <--- ADD THIS LINE
+  user?: UserProfile;
   error?: string;
   message?: string;
 }
