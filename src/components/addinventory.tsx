@@ -296,7 +296,6 @@ export default function InventoryModalForm({
         sellingprice: Number(sellingPrice) || 0,
         stockalertthreshold: Number(alertthreshold) || 0,
         expirydate: expiryDate || '',
-        username: 'admin',
         insertdate: new Date().toISOString(),
         updatedate: new Date().toISOString(),
       };

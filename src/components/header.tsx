@@ -1,6 +1,6 @@
 import { Box, Group, Avatar, Text, Menu, UnstyledButton } from '@mantine/core';
 import { ChevronDown, LogOut, User, Settings, Bell } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../services/useAuth';
 import { useNavigate } from 'react-router';
 
 export default function Header() {
