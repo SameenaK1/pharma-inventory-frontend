@@ -207,6 +207,54 @@ export const verifyRegistrationOtp = async (email: string, otp: string, token: s
   if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
   return data;
 };
+
+export const requestPasswordResetOtp = async (email: string) => {
+  const response = await fetch(`${API_BASE_URL}/user/forgot-password/request-otp`, {
+    method: 'POST',
+    headers: getHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to send password reset OTP');
+  return data;
+};
+
+export const verifyPasswordResetOtp = async (email: string, otp: string, token: string | null) => {
+  const response = await fetch(`${API_BASE_URL}/user/forgot-password/verify-otp`, {
+    method: 'POST',
+    headers: getHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ email, otp, token }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
+  return data;
+};
+
+export const resetPassword = async ({
+  email,
+  password,
+  token,
+}: {
+  email: string;
+  password: string;
+  token: string | null;
+}) => {
+  const response = await fetch(`${API_BASE_URL}/user/forgot-password/reset`, {
+    method: 'POST',
+    headers: getHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ email, password, token }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to reset password');
+  return data;
+};
+
 export const logoutUser = async (): Promise<{ success: boolean; message: string }> => {
   const response = await fetch(`${API_BASE_URL}/user/logout`, {
     method: 'POST',

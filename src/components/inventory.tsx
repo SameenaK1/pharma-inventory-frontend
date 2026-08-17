@@ -22,7 +22,6 @@ import {
 import {
     IconSearch,
     IconAlertCircle,
-    IconAlertTriangle,
     IconArrowsSort,
     IconSparkles,
     IconInbox, IconEdit, IconTrash, IconPlus, IconListDetails
