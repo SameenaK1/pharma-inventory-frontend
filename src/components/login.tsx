@@ -18,7 +18,7 @@ import {
 import { useForm } from '@mantine/form';
 import classes from './login.module.css';
 import { useNavigate } from 'react-router';
-import { useAuth } from '../services/authcontext';
+import { useAuth } from '../services/useAuth';
 
 import {
   sendRegistrationOtp,

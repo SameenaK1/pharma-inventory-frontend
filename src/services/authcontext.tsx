@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, type ReactNode,useCallback } from 'react';
+import React, { useState, type ReactNode,useCallback } from 'react';
 import {
   loginUser,
   logoutUser,
@@ -8,21 +8,10 @@ import type {
   UserProfile,
   LoginPayload,
   RegisterPayload,
-} from './api'// Ensure relative path matches your directory structure
+} from './api'
+import { AuthContext, type AuthStatus } from './useAuth';
 
-// REQUIREMENT #4: Explicit status tracking
-export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
-interface AuthContextType {
-  user: UserProfile | null;
-  status: AuthStatus;
-  login: (credentials: LoginPayload) => Promise<void>;
-  logout: () => Promise<void>;
-  register: (userData: RegisterPayload) => Promise<void>;
-  forceLogout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -76,12 +65,4 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
