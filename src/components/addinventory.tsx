@@ -90,6 +90,7 @@ export default function InventoryModalForm({
     manufacturer: string;
     packsize: string;
     composition1: string;
+    batchNumber: string;
   } | null>(null);
 
 
@@ -225,6 +226,7 @@ export default function InventoryModalForm({
           manufacturer: initialData.manufacturername || initialData.manufacturer_name || '',
           packsize: (initialData.pack_size_label ?? '').toString(),
           composition1: initialData.composition1 || '',
+          batchNumber: initialData.batch_number,
 
         });
         const initialMfg = initialData.manufacturername || initialData.manufacturer_name || '';
@@ -255,7 +257,8 @@ export default function InventoryModalForm({
         medicineName !== originalIdentity.name ||
         manufacturer !== originalIdentity.manufacturer ||
         (packsize?.toString() || '') !== originalIdentity.packsize ||
-        composition1 !== originalIdentity.composition1;
+        composition1 !== originalIdentity.composition1 ||
+        batchNumber !== originalIdentity.batchNumber;
 
       if (identityChanged) {
         notifications.show({
@@ -486,22 +489,6 @@ export default function InventoryModalForm({
                   rightSectionWidth={40}
                   styles={getInputStyles(isMedicineNameValid)}
                 />
-                {/* Show 0 records ONLY when actively searching and no results are returned */}
-                {medicineName.trim() &&
-                  !loading &&
-                  suggestions.length === 0 &&
-                  medicineName !== initialData?.name &&
-                  medicineName !== selectedMedicine?.name && (
-                    <Text size="xs" c="red.6" mt={4} fw={500}>
-                      0 records found
-                    </Text>
-                  )}
-                {/* Show search suggestions count only when actively typing dropdown alternatives */}
-                {medicineName.trim() && !loading && suggestions.length > 0 && medicineName !== selectedMedicine?.name && (
-                  <Text size="xs" c="dimmed" mt={4}>
-                    {suggestions.length} found
-                  </Text>
-                )}
               </Box>
 
               <NumberInput
