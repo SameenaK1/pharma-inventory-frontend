@@ -1,0 +1,344 @@
+import { useMemo, useRef, useState } from 'react';
+import {
+  Accordion,
+  ActionIcon,
+  Autocomplete,
+  Badge,
+  Button,
+  Divider,
+  Grid,
+  Group,
+  Loader,
+  NumberInput,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
+} from '@mantine/core';
+import { CalendarDays, ChevronDown, FilePlus2, Pill, Printer, Receipt, RotateCcw, Trash2, User } from 'lucide-react';
+import { debounce } from '../utils/debounce';
+import { getMedicineByName, type Medicine } from '../services/api';
+
+type BillingItem = {
+  id: number;
+  medicineName: string;
+  batchNumber: string;
+  expiryDate: string;
+  hsnCode: string;
+  quantity: number;
+  packUnit: string;
+  mrp: number;
+  sellingPrice: number;
+};
+
+const emptyItem = (id: number): BillingItem => ({
+  id,
+  medicineName: '',
+  batchNumber: '',
+  expiryDate: '',
+  hsnCode: '',
+  quantity: 1,
+  packUnit: 'Strip',
+  mrp: 0,
+  sellingPrice: 0,
+});
+
+const initialItems: BillingItem[] = [emptyItem(1)];
+
+const HSN_OPTIONS = [
+  { value: '30049099', label: '30049099 - Medicaments (GST 12%)' },
+  { value: '30039011', label: '30039011 - Ayurvedic medicaments (GST 5%)' },
+  { value: '30039099', label: '30039099 - Other medicaments (GST 5%)' },
+  { value: '90189099', label: '90189099 - Medical instruments (GST 12%)' },
+  { value: '33049900', label: '33049900 - Cosmetic / skin care (GST 18%)' },
+  { value: '30051090', label: '30051090 - Adhesive dressings & bandages (GST 12%)' },
+  { value: '21069099', label: '21069099 - Nutraceuticals / supplements (GST 18%)' },
+];
+
+const getGstRate = (hsnCode: string) => {
+  if (hsnCode.startsWith('3004')) return 12;
+  if (hsnCode.startsWith('3003')) return 5;
+  if (hsnCode.startsWith('9018')) return 12;
+  if (hsnCode.startsWith('3304')) return 18;
+  if (hsnCode.startsWith('2106')) return 18;
+  return 0;
+};
+
+const money = (value: number) => `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const GST_SLABS = [0, 5, 12, 18, 28, 40];
+
+// Keeps disabled/read-only field text readable instead of Mantine's default faded style.
+const disabledFieldStyles = { input: { color: 'var(--mantine-color-dark-9)', opacity: 1, fontWeight: 700, WebkitTextFillColor: 'var(--mantine-color-dark-9)' } };
+
+export default function Billing() {
+  const [items, setItems] = useState<BillingItem[]>(initialItems);
+  const [flatDiscount, setFlatDiscount] = useState<number | string>(0);
+  const [paymentType, setPaymentType] = useState<string | null>('Cash');
+  const [invoiceNumber, setInvoiceNumber] = useState('INV-2026-0084');
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [openSections, setOpenSections] = useState<string[]>(['items', 'summary']);
+  const [medicineSuggestions, setMedicineSuggestions] = useState<Record<number, Medicine[]>>({});
+  const [medicineSearchLoading, setMedicineSearchLoading] = useState<Record<number, boolean>>({});
+  const debouncedSearchers = useRef<Map<number, (name: string) => void>>(new Map());
+
+  const totals = useMemo(() => {
+    const calculated = items.map((item) => {
+      // MRP and selling price are tax-inclusive; taxable value is derived back from the GST rate.
+      const total = item.quantity * item.sellingPrice;
+      const discountAmount = Math.max(0, (item.mrp - item.sellingPrice) * item.quantity);
+      const gstRate = getGstRate(item.hsnCode);
+      const taxable = total / (1 + gstRate / 100);
+      const gst = total - taxable;
+      return { ...item, total, discountAmount, gstRate, taxable, gst, cgst: gst / 2, sgst: gst / 2 };
+    });
+    const taxable = calculated.reduce((sum, item) => sum + item.taxable, 0);
+    const gst = calculated.reduce((sum, item) => sum + item.gst, 0);
+    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0) + Number(flatDiscount || 0);
+    const beforeRound = taxable + gst - Number(flatDiscount || 0);
+    const gstBreakdown = GST_SLABS.map((rate) => {
+      const rows = calculated.filter((item) => item.gstRate === rate);
+      const slabTaxable = rows.reduce((sum, item) => sum + item.taxable, 0);
+      const slabGst = rows.reduce((sum, item) => sum + item.gst, 0);
+      return { rate, taxable: slabTaxable, cgst: slabGst / 2, sgst: slabGst / 2, igst: 0 };
+    });
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const grossAmount = calculated.reduce((sum, item) => sum + item.quantity * item.mrp, 0);
+    return {
+      calculated,
+      taxable,
+      gst,
+      discount,
+      beforeRound,
+      gstBreakdown,
+      totalQuantity,
+      grossAmount,
+      payable: Math.max(0, beforeRound),
+    };
+  }, [items, flatDiscount]);
+
+  const updateItem = (id: number, field: keyof BillingItem, value: string | number) => {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  // Lazily creates one debounced searcher per row so simultaneous edits don't cancel each other.
+  const getDebouncedMedicineSearch = (id: number) => {
+    if (!debouncedSearchers.current.has(id)) {
+      debouncedSearchers.current.set(
+        id,
+        debounce(async (name: string) => {
+          if (!name.trim()) {
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+            setMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+            return;
+          }
+          setMedicineSearchLoading((prev) => ({ ...prev, [id]: true }));
+          try {
+            const response = await getMedicineByName(name);
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: response.data || [] }));
+          } catch {
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+          } finally {
+            setMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+          }
+        }, 400)
+      );
+    }
+    return debouncedSearchers.current.get(id)!;
+  };
+
+  const handleMedicineNameSearch = (id: number, value: string) => {
+    updateItem(id, 'medicineName', value);
+    const matched = (medicineSuggestions[id] || []).find((med) => med.name === value);
+    if (matched) {
+      setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+      return;
+    }
+    getDebouncedMedicineSearch(id)(value);
+  };
+
+  const clearForm = () => {
+    setItems([emptyItem(Date.now())]);
+    setFlatDiscount(0);
+    setInvoiceNumber('');
+    setInvoiceDate(new Date().toISOString().slice(0, 10));
+  };
+
+  const removeItem = (id: number) => {
+    if (items.length <= 1) return;
+    setItems((current) => current.filter((line) => line.id !== id));
+    debouncedSearchers.current.delete(id);
+    setMedicineSuggestions((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setMedicineSearchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
+  };
+
+  // Collapsed section headers get a light blue tint; expanded ones stay neutral.
+  const sectionControlBg = (value: string) => (openSections.includes(value) ? 'blue.0' : 'blue.0');
+
+  return (
+    <Stack gap="lg" maw={1500} mx="auto">
+      <div>
+        <Group gap="sm" mb={4}><Title order={2}>Create pharmacy invoice</Title></Group>
+        <Text c="dimmed" size="sm">Capture patient, prescriber and medicine details in one bill.</Text>
+      </div>
+
+      <Paper withBorder p="md" radius="md">
+        <Group gap="xs" mb="sm" p="xs" bg="blue.0" style={{ borderRadius: 6 }}><CalendarDays size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Invoice information</Text></Group>
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+          <TextInput label="Invoice number" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
+          <TextInput label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
+          <Select label="Bill type" data={['Retail invoice', 'Tax invoice', 'Estimate']} defaultValue="Retail invoice" />
+          <TextInput label="Doctor name" placeholder="Dr. Ananya Sharma" />
+          <Select label="Payment type" data={['Cash', 'UPI', 'Card', 'Credit']} value={paymentType} onChange={setPaymentType} />
+          {(paymentType === 'UPI' || paymentType === 'Card') && <TextInput label="Payment reference" placeholder="UTR / last 4 digits" />}
+        </SimpleGrid>
+      </Paper>
+
+      <Accordion
+        multiple
+        variant="separated"
+        value={openSections}
+        onChange={setOpenSections}
+        radius="md"
+        chevron={<ChevronDown size={20} strokeWidth={3} color="var(--mantine-color-blue-6)" />}
+        styles={{ control: { fontWeight: 700 }, chevron: { width: 20, height: 20 } }}
+      >
+        <Accordion.Item value="customer">
+          <Accordion.Control><Group gap="xs" p="xs" bg={sectionControlBg('customer')} style={{ borderRadius: 6 }}><User size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Customer / patient information</Text></Group></Accordion.Control>
+          <Accordion.Panel><SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+            <TextInput label="Customer name" placeholder="Full name" />
+            <TextInput label="Phone number" placeholder="10-digit mobile number" />
+            <NumberInput label="Age" min={0} max={120} placeholder="Years" />
+            <Select label="Gender" placeholder="Select gender" data={['Female', 'Male', 'Other', 'Prefer not to say']} />
+            <TextInput label="Address" placeholder="Billing address" />
+            <TextInput label="GSTIN (optional)" placeholder="For business customers" />
+            <TextInput label="Prescription / Rx no. (optional)" placeholder="Doctor prescription reference" />
+            <TextInput label="Prescription date (optional)" type="date" />
+          </SimpleGrid></Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="items">
+          <Accordion.Control><Group gap="xs" p="xs" bg={sectionControlBg('items')} style={{ borderRadius: 6 }}><Pill size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Medicine items</Text><Badge ml="sm" variant="light">{items.length} {items.length === 1 ? 'line' : 'lines'}</Badge></Group></Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="md">
+              <Text size="xs" c="dimmed">GST is inferred from the selected HSN code: 3003 / 2106 = 5%/18%, 3004 / 9018 / 3005 = 12%, 3304 = 18%.</Text>
+              <Table verticalSpacing="xs" horizontalSpacing="xs" highlightOnHover style={{ tableLayout: 'fixed', width: '100%' }} fz="xs">
+                <Table.Thead><Table.Tr>
+                  <Table.Th style={{ width: '16%' }}>Medicine</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Batch</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Expiry</Table.Th>
+                  <Table.Th style={{ width: '6%' }}>Qty</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>Pack</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>MRP</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>Selling</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Discount</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>GST</Table.Th>
+                  <Table.Th style={{ width: '9%' }}>HSN code</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Taxable</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Total</Table.Th>
+                  <Table.Th w={48} ta="center">Remove</Table.Th>
+                </Table.Tr></Table.Thead>
+                <Table.Tbody>{totals.calculated.length === 0 ? (
+                  <Table.Tr><Table.Td colSpan={13}><Text c="dimmed" ta="center" py="md">No medicines added yet. Click "Add medicine" to start billing.</Text></Table.Td></Table.Tr>
+                ) : totals.calculated.map((item) => (
+                  <Table.Tr key={item.id}>
+                    <Table.Td>
+                      <Autocomplete
+                        size="xs"
+                        placeholder="Medicine name"
+                        value={item.medicineName}
+                        data={(medicineSuggestions[item.id] || []).map((med) => ({
+                          value: med.name,
+                          label: med.manufacturer_name ? `${med.name} — ${med.manufacturer_name}` : med.name,
+                        }))}
+                        onChange={(value) => handleMedicineNameSearch(item.id, value)}
+                        rightSection={medicineSearchLoading[item.id] ? <Loader size="xs" /> : null}
+                        comboboxProps={{ withinPortal: true, width: 300, position: 'bottom-start', offset: 2 }}
+                        renderOption={({ option }) => {
+                          const med = (medicineSuggestions[item.id] || []).find((m) => m.name === option.value);
+                          return (
+                            <Stack gap={0}>
+                              <Text size="sm" fw={600}>{med?.name ?? option.value}</Text>
+                              {med && (
+                                <Text size="xs" c="dimmed">
+                                  {[med.manufacturer_name, med.type, med.pack_size_label].filter(Boolean).join(' • ')}
+                                </Text>
+                              )}
+                            </Stack>
+                          );
+                        }}
+                      />
+                    </Table.Td>
+                    <Table.Td><TextInput size="xs" placeholder="Batch" value={item.batchNumber} onChange={(event) => updateItem(item.id, 'batchNumber', event.currentTarget.value)} /></Table.Td>
+                    <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateItem(item.id, 'expiryDate', event.currentTarget.value)} /></Table.Td>
+                    <Table.Td><NumberInput size="xs" min={1} value={item.quantity} onChange={(value) => updateItem(item.id, 'quantity', Number(value) || 0)} hideControls /></Table.Td>
+                    <Table.Td><Select size="xs" data={['Strip', 'Bottle', 'Box', 'Tube', 'Unit']} value={item.packUnit} onChange={(value) => updateItem(item.id, 'packUnit', value || 'Unit')} /></Table.Td>
+                    <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.mrp} onChange={(value) => updateItem(item.id, 'mrp', Number(value) || 0)} hideControls /></Table.Td>
+                    <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.sellingPrice} onChange={(value) => updateItem(item.id, 'sellingPrice', Number(value) || 0)} hideControls /></Table.Td>
+                    <Table.Td><TextInput size="xs" disabled fw={700} value={money(item.discountAmount)} styles={disabledFieldStyles} /></Table.Td>
+                    <Table.Td><TextInput size="xs" disabled fw={700} value={`${item.gstRate}% · ${money(item.gst)}`} styles={disabledFieldStyles} /></Table.Td>
+                    <Table.Td><Select size="xs" placeholder="Select HSN" searchable data={HSN_OPTIONS} value={item.hsnCode} onChange={(value) => updateItem(item.id, 'hsnCode', value || '')} /></Table.Td>
+                    <Table.Td><TextInput size="xs" disabled fw={700} value={money(item.taxable)} styles={disabledFieldStyles} /></Table.Td>
+                    <Table.Td><TextInput size="xs" disabled fw={700} value={money(item.total)} styles={disabledFieldStyles} /></Table.Td>
+                    <Table.Td>
+                      <Group justify="center">
+                        <Tooltip label={items.length <= 1 ? 'At least one item is required' : 'Remove item'}><ActionIcon variant="subtle" color="red" disabled={items.length <= 1} onClick={() => removeItem(item.id)}><Trash2 size={16} /></ActionIcon></Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}</Table.Tbody>
+              </Table>
+              <Button variant="light" leftSection={<FilePlus2 size={16} />} onClick={() => setItems((current) => [...current, emptyItem(Date.now())])} w="fit-content">Add medicine</Button>
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="summary">
+          <Accordion.Control><Group gap="xs" p="xs" bg={sectionControlBg('summary')} style={{ borderRadius: 6 }}><Receipt size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Bill summary and taxes</Text></Group></Accordion.Control>
+          <Accordion.Panel><Grid align="flex-start">
+            <Grid.Col span={{ base: 12, md: 7 }}>
+              <Table withTableBorder withColumnBorders>
+                <Table.Thead><Table.Tr><Table.Th>GST%</Table.Th><Table.Th>Taxable Amt (₹)</Table.Th><Table.Th>CGST (₹)</Table.Th><Table.Th>SGST (₹)</Table.Th><Table.Th>IGST (₹)</Table.Th></Table.Tr></Table.Thead>
+                <Table.Tbody>{totals.gstBreakdown.map((slab) => (
+                  <Table.Tr key={slab.rate}>
+                    <Table.Td>{slab.rate}</Table.Td>
+                    <Table.Td>{slab.taxable.toLocaleString('en-IN', { minimumFractionDigits: slab.taxable ? 2 : 0, maximumFractionDigits: 2 })}</Table.Td>
+                    <Table.Td>{slab.cgst.toLocaleString('en-IN', { minimumFractionDigits: slab.cgst ? 2 : 0, maximumFractionDigits: 2 })}</Table.Td>
+                    <Table.Td>{slab.sgst.toLocaleString('en-IN', { minimumFractionDigits: slab.sgst ? 2 : 0, maximumFractionDigits: 2 })}</Table.Td>
+                    <Table.Td>{slab.igst}</Table.Td>
+                  </Table.Tr>
+                ))}</Table.Tbody>
+              </Table>
+            </Grid.Col>
+            <Grid.Col span={{ base: 12, md: 5 }}>
+              <Stack gap="sm">
+                <Table withTableBorder withColumnBorders verticalSpacing="xs">
+                  <Table.Tbody>
+                    <Table.Tr><Table.Td fw={600}>TOTAL QUANTITY</Table.Td><Table.Td ta="right">{totals.totalQuantity}</Table.Td></Table.Tr>
+                    <Table.Tr><Table.Td fw={600}>GROSS AMOUNT</Table.Td><Table.Td ta="right">{money(totals.grossAmount)}</Table.Td></Table.Tr>
+                    <Table.Tr><Table.Td fw={600}>DISCOUNT AMOUNT</Table.Td><Table.Td ta="right" c="red">-{money(totals.discount)}</Table.Td></Table.Tr>
+                  </Table.Tbody>
+                </Table>
+                <Divider my={2} />
+                <Group justify="space-between"><Text fw={700}>Subtotal</Text><Text fw={700}>{money(totals.beforeRound)}</Text></Group>
+                <NumberInput label="Flat discount" prefix="₹" min={0} value={flatDiscount} onChange={setFlatDiscount} hideControls maw={220} />
+                <Paper p="md" bg="blue.7" c="white" radius="md"><Group justify="space-between"><Text fw={600}>Final payable</Text><Title order={3}>{money(totals.payable)}</Title></Group></Paper>
+              </Stack>
+            </Grid.Col>
+          </Grid></Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
+
+      <Group justify="flex-end" gap="sm">
+        <Button variant="default" leftSection={<RotateCcw size={16} />} onClick={clearForm}>Clear form</Button>
+        <Button variant="light" leftSection={<Printer size={16} />} onClick={() => window.print()}>Print</Button>
+        <Button leftSection={<FilePlus2 size={16} />}>Save invoice</Button>
+      </Group>
+    </Stack>
+  );
+}
