@@ -11,7 +11,7 @@ export default function Sidebar() {
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} />, path: '/dashboard' },
     { id: 'inventory', label: 'Inventory', icon: <Boxes size={19} />, path: '/inventory' },
     { id: 'addmedicine', label: 'Add Medicine', icon: <Pill size={19} />, path: '/addmedicine' },
-    { id: 'sales', label: 'Sales Logs', icon: <ShoppingCart size={19} />, path: '/sales' },
+    { id: 'billing', label: 'New Billing', icon: <ShoppingCart size={19} />, path: '/billing' },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={19} />, path: '/analytics' },
     { id: 'settings', label: 'Settings', icon: <Settings size={19} />, path: '/settings' },
   ];
