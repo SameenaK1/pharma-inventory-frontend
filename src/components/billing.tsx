@@ -190,9 +190,12 @@ export default function Billing() {
       <Paper withBorder p="md" radius="md">
         <Group gap="xs" mb="sm" p="xs" bg="blue.0" style={{ borderRadius: 6 }}><CalendarDays size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Invoice information</Text></Group>
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+          <TextInput label="Invoice number" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
           <TextInput label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
+          <Select label="Bill type" data={['Retail invoice', 'Tax invoice', 'Estimate']} defaultValue="Retail invoice" />
           <TextInput label="Doctor name" placeholder="Dr. Ananya Sharma" />
           <Select label="Payment type" data={['Cash', 'UPI', 'Card', 'Credit']} value={paymentType} onChange={setPaymentType} />
+          {(paymentType === 'UPI' || paymentType === 'Card') && <TextInput label="Payment reference" placeholder="UTR / last 4 digits" />}
         </SimpleGrid>
       </Paper>
 
@@ -214,6 +217,8 @@ export default function Billing() {
             <Select label="Gender" placeholder="Select gender" data={['Female', 'Male', 'Other', 'Prefer not to say']} />
             <TextInput label="Address" placeholder="Billing address" />
             <TextInput label="GSTIN (optional)" placeholder="For business customers" />
+            <TextInput label="Prescription / Rx no. (optional)" placeholder="Doctor prescription reference" />
+            <TextInput label="Prescription date (optional)" type="date" />
           </SimpleGrid></Accordion.Panel>
         </Accordion.Item>
 
