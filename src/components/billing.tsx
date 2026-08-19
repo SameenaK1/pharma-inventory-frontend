@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Accordion,
   ActionIcon,
+  Autocomplete,
   Badge,
   Button,
   Divider,
   Grid,
   Group,
+  Loader,
   NumberInput,
   Paper,
   Select,
@@ -19,6 +21,8 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { CalendarDays, ChevronDown, FilePlus2, Pill, Printer, Receipt, RotateCcw, Trash2, User } from 'lucide-react';
+import { debounce } from '../utils/debounce';
+import { getMedicineByName, type Medicine } from '../services/api';
 
 type BillingItem = {
   id: number;
@@ -79,6 +83,9 @@ export default function Billing() {
   const [invoiceNumber, setInvoiceNumber] = useState('INV-2026-0084');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [openSections, setOpenSections] = useState<string[]>(['items', 'summary']);
+  const [medicineSuggestions, setMedicineSuggestions] = useState<Record<number, Medicine[]>>({});
+  const [medicineSearchLoading, setMedicineSearchLoading] = useState<Record<number, boolean>>({});
+  const debouncedSearchers = useRef<Map<number, (name: string) => void>>(new Map());
 
   const totals = useMemo(() => {
     const calculated = items.map((item) => {
@@ -119,6 +126,42 @@ export default function Billing() {
     setItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
   };
 
+  // Lazily creates one debounced searcher per row so simultaneous edits don't cancel each other.
+  const getDebouncedMedicineSearch = (id: number) => {
+    if (!debouncedSearchers.current.has(id)) {
+      debouncedSearchers.current.set(
+        id,
+        debounce(async (name: string) => {
+          if (!name.trim()) {
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+            setMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+            return;
+          }
+          setMedicineSearchLoading((prev) => ({ ...prev, [id]: true }));
+          try {
+            const response = await getMedicineByName(name);
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: response.data || [] }));
+          } catch {
+            setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+          } finally {
+            setMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+          }
+        }, 400)
+      );
+    }
+    return debouncedSearchers.current.get(id)!;
+  };
+
+  const handleMedicineNameSearch = (id: number, value: string) => {
+    updateItem(id, 'medicineName', value);
+    const matched = (medicineSuggestions[id] || []).find((med) => med.name === value);
+    if (matched) {
+      setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+      return;
+    }
+    getDebouncedMedicineSearch(id)(value);
+  };
+
   const clearForm = () => {
     setItems([emptyItem(Date.now())]);
     setFlatDiscount(0);
@@ -129,6 +172,9 @@ export default function Billing() {
   const removeItem = (id: number) => {
     if (items.length <= 1) return;
     setItems((current) => current.filter((line) => line.id !== id));
+    debouncedSearchers.current.delete(id);
+    setMedicineSuggestions((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setMedicineSearchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   // Collapsed section headers get a light blue tint; expanded ones stay neutral.
@@ -143,8 +189,7 @@ export default function Billing() {
 
       <Paper withBorder p="md" radius="md">
         <Group gap="xs" mb="sm" p="xs" bg="blue.0" style={{ borderRadius: 6 }}><CalendarDays size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Invoice information</Text></Group>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
-          <TextInput label="Invoice number" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
           <TextInput label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
           <TextInput label="Doctor name" placeholder="Dr. Ananya Sharma" />
           <Select label="Payment type" data={['Cash', 'UPI', 'Card', 'Credit']} value={paymentType} onChange={setPaymentType} />
@@ -178,14 +223,54 @@ export default function Billing() {
             <Stack gap="md">
               <Text size="xs" c="dimmed">GST is inferred from the selected HSN code: 3003 / 2106 = 5%/18%, 3004 / 9018 / 3005 = 12%, 3304 = 18%.</Text>
               <Table verticalSpacing="xs" horizontalSpacing="xs" highlightOnHover style={{ tableLayout: 'fixed', width: '100%' }} fz="xs">
-                <Table.Thead><Table.Tr><Table.Th>Medicine</Table.Th><Table.Th>Batch</Table.Th><Table.Th>Expiry</Table.Th><Table.Th>Qty</Table.Th><Table.Th>Pack</Table.Th><Table.Th>MRP</Table.Th><Table.Th>Selling</Table.Th><Table.Th>Discount</Table.Th><Table.Th>GST</Table.Th><Table.Th>HSN code</Table.Th><Table.Th>Taxable</Table.Th><Table.Th>Total</Table.Th><Table.Th w={48} ta="center">Remove</Table.Th></Table.Tr></Table.Thead>
+                <Table.Thead><Table.Tr>
+                  <Table.Th style={{ width: '16%' }}>Medicine</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Batch</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Expiry</Table.Th>
+                  <Table.Th style={{ width: '6%' }}>Qty</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>Pack</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>MRP</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>Selling</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Discount</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>GST</Table.Th>
+                  <Table.Th style={{ width: '9%' }}>HSN code</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Taxable</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>Total</Table.Th>
+                  <Table.Th w={48} ta="center">Remove</Table.Th>
+                </Table.Tr></Table.Thead>
                 <Table.Tbody>{totals.calculated.length === 0 ? (
                   <Table.Tr><Table.Td colSpan={13}><Text c="dimmed" ta="center" py="md">No medicines added yet. Click "Add medicine" to start billing.</Text></Table.Td></Table.Tr>
                 ) : totals.calculated.map((item) => (
                   <Table.Tr key={item.id}>
-                    <Table.Td><TextInput size="xs" placeholder="Medicine name" value={item.medicineName} onChange={(event) => updateItem(item.id, 'medicineName', event.currentTarget.value)} /></Table.Td>
+                    <Table.Td>
+                      <Autocomplete
+                        size="xs"
+                        placeholder="Medicine name"
+                        value={item.medicineName}
+                        data={(medicineSuggestions[item.id] || []).map((med) => ({
+                          value: med.name,
+                          label: med.manufacturer_name ? `${med.name} — ${med.manufacturer_name}` : med.name,
+                        }))}
+                        onChange={(value) => handleMedicineNameSearch(item.id, value)}
+                        rightSection={medicineSearchLoading[item.id] ? <Loader size="xs" /> : null}
+                        comboboxProps={{ withinPortal: true, width: 300, position: 'bottom-start', offset: 2 }}
+                        renderOption={({ option }) => {
+                          const med = (medicineSuggestions[item.id] || []).find((m) => m.name === option.value);
+                          return (
+                            <Stack gap={0}>
+                              <Text size="sm" fw={600}>{med?.name ?? option.value}</Text>
+                              {med && (
+                                <Text size="xs" c="dimmed">
+                                  {[med.manufacturer_name, med.type, med.pack_size_label].filter(Boolean).join(' • ')}
+                                </Text>
+                              )}
+                            </Stack>
+                          );
+                        }}
+                      />
+                    </Table.Td>
                     <Table.Td><TextInput size="xs" placeholder="Batch" value={item.batchNumber} onChange={(event) => updateItem(item.id, 'batchNumber', event.currentTarget.value)} /></Table.Td>
-                    <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateItem(item.id, 'expiryDate', event.currentTarget.value)} /></Table.Td>                    
+                    <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateItem(item.id, 'expiryDate', event.currentTarget.value)} /></Table.Td>
                     <Table.Td><NumberInput size="xs" min={1} value={item.quantity} onChange={(value) => updateItem(item.id, 'quantity', Number(value) || 0)} hideControls /></Table.Td>
                     <Table.Td><Select size="xs" data={['Strip', 'Bottle', 'Box', 'Tube', 'Unit']} value={item.packUnit} onChange={(value) => updateItem(item.id, 'packUnit', value || 'Unit')} /></Table.Td>
                     <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.mrp} onChange={(value) => updateItem(item.id, 'mrp', Number(value) || 0)} hideControls /></Table.Td>
