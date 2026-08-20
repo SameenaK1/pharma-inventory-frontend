@@ -333,6 +333,40 @@ export const getMedicineByName = async (name: string): Promise<MedicineApiRespon
   return response.json();
 };
 
+export interface BatchInfo {
+  batchNumber: string;
+  mrp: number;
+  sellingPrice: number;
+  expiryDate: string;
+}
+
+export interface BatchNumbersResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data: BatchInfo[];
+}
+
+export const getBatchNumbersByMedicine = async (name: string): Promise<BatchNumbersResponse> => {
+  if (!name.trim()) {
+    throw new Error('Medicine name is required');
+  }
+
+  const res = await fetch(`${API_BASE_URL}/billing/batch-numbers?name=${encodeURIComponent(name)}`, {
+    method: 'GET',
+    headers: getHeaders(),
+    credentials: 'include',
+  });
+
+  const response = await handleResponse(res);
+  const body: BatchNumbersResponse = await response.json().catch(() => ({ success: false, data: [] }));
+  if (!response.ok && response.status !== 404) {
+    throw new Error(body.error || body.message || 'Failed to fetch batch numbers');
+  }
+
+  return body;
+};
+
 export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
   if (!name.trim()) {
     throw new Error('Search term is required');
