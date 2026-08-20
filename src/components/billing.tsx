@@ -132,7 +132,22 @@ export default function Billing() {
     setBatchLoading((prev) => ({ ...prev, [id]: true }));
     try {
       const response = await getBatchNumbersByMedicine(medicineName);
-      setBatchOptions((prev) => ({ ...prev, [id]: response.data || [] }));
+      const batches = response.data || [];
+      setBatchOptions((prev) => ({ ...prev, [id]: batches }));
+
+      const earliestExpiringBatch = [...batches]
+        .filter((batch) => batch.expiryDate)
+        .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0];
+
+      if (earliestExpiringBatch) {
+        setItems((current) => current.map((item) => item.id === id ? {
+          ...item,
+          batchNumber: earliestExpiringBatch.batchNumber,
+          expiryDate: earliestExpiringBatch.expiryDate.slice(0, 7),
+          mrp: earliestExpiringBatch.mrp !== undefined ? Number(earliestExpiringBatch.mrp) : item.mrp,
+          sellingPrice: earliestExpiringBatch.sellingPrice !== undefined ? Number(earliestExpiringBatch.sellingPrice) : item.sellingPrice,
+        } : item));
+      }
     } catch {
       setBatchOptions((prev) => ({ ...prev, [id]: [] }));
     } finally {
@@ -281,21 +296,37 @@ export default function Billing() {
                         placeholder="Medicine name"
                         value={item.medicineName}
                         data={(medicineSuggestions[item.id] || []).map((med) => ({
-                          value: med.name,
-                          label: med.manufacturer_name ? `${med.name} — ${med.manufacturer_name}` : med.name,
+                          value: `${med.name}__${med.id}`,
+                          label: med.name,
                         }))}
-                        onChange={(value) => handleMedicineNameSearch(item.id, value)}
-                        onOptionSubmit={(value) => handleMedicineSelect(item.id, value)}
+                        onChange={(value) => {
+                          const cleanName = value.includes('__') ? value.split('__')[0] : value;
+                          handleMedicineNameSearch(item.id, cleanName);
+                        }}
+                        onOptionSubmit={(selectedValue) => {
+                          const [selectedId] = selectedValue.split('__');
+
+
+                          handleMedicineSelect(item.id, selectedId);
+                        }}
                         rightSection={medicineSearchLoading[item.id] ? <Loader size="xs" /> : null}
                         comboboxProps={{ withinPortal: true, width: 300, position: 'bottom-start', offset: 2 }}
                         renderOption={({ option }) => {
-                          const med = (medicineSuggestions[item.id] || []).find((m) => m.name === option.value);
+                          const [name, medId] = option.value.split('__');
+                          const med = (medicineSuggestions[item.id] || []).find(
+                            (m) => String(m.id) === String(medId)
+                          );
+
                           return (
                             <Stack gap={0}>
-                              <Text size="sm" fw={600}>{med?.name ?? option.value}</Text>
+                              <Text size="sm" fw={600}>
+                                {med?.name ?? name}
+                              </Text>
                               {med && (
                                 <Text size="xs" c="dimmed">
-                                  {[med.manufacturer_name, med.type, med.pack_size_label].filter(Boolean).join(' • ')}
+                                  {[med.manufacturer_name, med.type, med.pack_size_label]
+                                    .filter(Boolean)
+                                    .join(' • ')}
                                 </Text>
                               )}
                             </Stack>
