@@ -9,7 +9,7 @@
   - `/dashboard`, `/inventory`, and `/addmedicine` live under `ProtectedRoute` and the shared authenticated layout.
   - `AppLayout` renders the persistent sidebar, header, and page outlet.
 - Authentication is session-like and client-side: the `AuthProvider` restores `user` from `localStorage`, and protected routes redirect to `/` when no token is present.
-- `src/services/api.ts` is the single API layer for backend requests, auth headers, inventory CRUD, medicine/manufacturer search, and OTP/login/register flows.
+- The API layer is split by domain under `src/services/`: `apiClient.ts` (shared `API_BASE_URL`, headers, error/response helpers), `user.ts` (auth, OTP, login/register), `inventory.ts` (inventory CRUD, batch numbers), `medicine.ts` (medicine search), and `manufacturer.ts` (manufacturer search).
 
 ## Build, run, and validate
 
@@ -33,7 +33,7 @@
 ## Key conventions
 
 - Use Mantine components and the existing layout system unless there is a strong reason not to.
-- Keep backend calls in `src/services/api.ts`; components should call the service layer instead of scattering `fetch` logic.
+- Keep backend calls in the domain-specific `src/services/*.ts` modules; components should call the service layer instead of scattering `fetch` logic.
 - Preserve the auth payload shape stored in `localStorage`: `{ username, token }`.
 - Keep the `401` flow intact: clear the stored user and send the browser back to `/`.
 - When adding authenticated screens, register them in `App.tsx` under `ProtectedRoute` and `AppLayout`, then add a matching sidebar link if needed.

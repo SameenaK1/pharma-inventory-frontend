@@ -3,12 +3,12 @@ import {
   loginUser,
   logoutUser,
   finalizeRegistration,
-} from './api';
+} from './user';
 import type {
   UserProfile,
   LoginPayload,
   RegisterPayload,
-} from './api'
+} from './user'
 import { AuthContext, type AuthStatus } from './useAuth';
 
 

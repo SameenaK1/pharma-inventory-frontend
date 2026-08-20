@@ -22,7 +22,8 @@ import {
 } from '@mantine/core';
 import { CalendarDays, ChevronDown, FilePlus2, Pill, Printer, Receipt, RotateCcw, Trash2, User } from 'lucide-react';
 import { debounce } from '../utils/debounce';
-import { getMedicineByName, getBatchNumbersByMedicine, type Medicine, type BatchInfo } from '../services/api';
+import { getMedicineByName, type Medicine } from '../services/medicine';
+import { getBatchNumbersByMedicine, type BatchInfo } from '../services/inventory';
 
 type BillingItem = {
   id: number;
