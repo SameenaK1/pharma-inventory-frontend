@@ -30,6 +30,14 @@ const getHeaders = (): HeadersInit => {
     'Content-Type': 'application/json',
   };
 };
+const toApiError = (error: unknown, fallbackMessage: string): Error => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(fallbackMessage);
+};
+
  const handleResponse = async (res: Response) => {
   if (res.status === 401) {
     window.location.href = '/';
@@ -181,56 +189,72 @@ export interface AuthResponse {
 }
 
 export const sendRegistrationOtp = async (email: string) => {
-  const response = await fetch(`${API_BASE_URL}/user/send-otp`, {
-    method: "POST",
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ email }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Failed to send OTP");
-  return data;
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/send-otp`, {
+      method: "POST",
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to send OTP");
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Failed to send OTP');
+  }
 };
 export const verifyRegistrationOtp = async (email: string, otp: string, token: string | null) => {
-  const response = await fetch(`${API_BASE_URL}/user/verify-otp`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({
-      email,
-      otp,
-      token
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
-  return data;
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/verify-otp`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({
+        email,
+        otp,
+        token
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Failed to verify registration OTP');
+  }
 };
 
 export const requestPasswordResetOtp = async (email: string) => {
-  const response = await fetch(`${API_BASE_URL}/user/forgot-password/request-otp`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ email }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/forgot-password/request-otp`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    });
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to send password reset OTP');
-  return data;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to send password reset OTP');
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Failed to request password reset OTP');
+  }
 };
 
 export const verifyPasswordResetOtp = async (email: string, otp: string, token: string | null) => {
-  const response = await fetch(`${API_BASE_URL}/user/forgot-password/verify-otp`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ email, otp, token }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/forgot-password/verify-otp`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ email, otp, token }),
+    });
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
-  return data;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Failed to verify password reset OTP');
+  }
 };
 
 export const resetPassword = async ({
@@ -242,59 +266,75 @@ export const resetPassword = async ({
   password: string;
   token: string | null;
 }) => {
-  const response = await fetch(`${API_BASE_URL}/user/forgot-password/reset`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ email, password, token }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/forgot-password/reset`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ email, password, token }),
+    });
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to reset password');
-  return data;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to reset password');
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Failed to reset password');
+  }
 };
 
 export const logoutUser = async (): Promise<{ success: boolean; message: string }> => {
-  const response = await fetch(`${API_BASE_URL}/user/logout`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include', // Sends cookie to server so server can clear it
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Sends cookie to server so server can clear it
+    });
 
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body.error || 'Logout failed');
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || 'Logout failed');
+    }
+    return body;
+  } catch (error) {
+    throw toApiError(error, 'Logout failed');
   }
-  return body;
 };
 
 // 4. Step 3 of Registration: Create the actual account
 export const finalizeRegistration = async (userData: any) => {
-  const response = await fetch(`${API_BASE_URL}/user/register`, {
-    method: "POST",
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(userData),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Registration failed");
-  return data;
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/register`, {
+      method: "POST",
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(userData),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Registration failed");
+    return data;
+  } catch (error) {
+    throw toApiError(error, 'Registration failed');
+  }
 };
 
 // 🌟 3. Login User API Call
 export const  loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/user/login`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
 
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(body.error || 'Login failed');
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.error || 'Login failed');
+    }
+    return body;
+  } catch (error) {
+    throw toApiError(error, 'Login failed');
   }
-  return body;
 };
 // export const getCurrentUserProfile = async (): Promise<UserProfileResponse> => {
 //   const res = await fetch(`${API_BASE_URL}/user/profile`, {
@@ -314,23 +354,27 @@ export const  loginUser = async (data: LoginPayload): Promise<AuthResponse> => {
 // };
 
 export const getMedicineByName = async (name: string): Promise<MedicineApiResponse> => {
-  if (!name.trim()) {
-    throw new Error('Search term is required');
+  try {
+    if (!name.trim()) {
+      throw new Error('Search term is required');
+    }
+
+    const res = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+
+    const response = await handleResponse(res);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch medicine data');
+    }
+
+    return response.json();
+  } catch (error) {
+    throw toApiError(error, 'Failed to fetch medicine data');
   }
-
-  const res = await fetch(`${API_BASE_URL}/medicine/medicine-name?name=${encodeURIComponent(name)}`, {
-    method: 'GET',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
-
-  const response = await handleResponse(res);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch medicine data');
-  }
-
-  return response.json();
 };
 
 export interface BatchInfo {
@@ -348,109 +392,129 @@ export interface BatchNumbersResponse {
 }
 
 export const getBatchNumbersByMedicine = async (name: string): Promise<BatchNumbersResponse> => {
-  if (!name.trim()) {
-    throw new Error('Medicine name is required');
+  try {
+    if (!name.trim()) {
+      throw new Error('Medicine name is required');
+    }
+
+    const res = await fetch(`${API_BASE_URL}/billing/batch-numbers?name=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+
+    const response = await handleResponse(res);
+    const body: BatchNumbersResponse = await response.json().catch(() => ({ success: false, data: [] }));
+    if (!response.ok && response.status !== 404) {
+      throw new Error(body.error || body.message || 'Failed to fetch batch numbers');
+    }
+
+    return body;
+  } catch (error) {
+    throw toApiError(error, 'Failed to fetch batch numbers');
   }
-
-  const res = await fetch(`${API_BASE_URL}/billing/batch-numbers?name=${encodeURIComponent(name)}`, {
-    method: 'GET',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
-
-  const response = await handleResponse(res);
-  const body: BatchNumbersResponse = await response.json().catch(() => ({ success: false, data: [] }));
-  if (!response.ok && response.status !== 404) {
-    throw new Error(body.error || body.message || 'Failed to fetch batch numbers');
-  }
-
-  return body;
 };
 
 export const getManufacturerName = async (name: string): Promise<{ success: boolean; message: string; data: Manufacturer[] }> => {
-  if (!name.trim()) {
-    throw new Error('Search term is required');
+  try {
+    if (!name.trim()) {
+      throw new Error('Search term is required');
+    }
+
+    const res = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+
+    const response = await handleResponse(res);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch manufacturer data');
+    }
+
+    return response.json();
+  } catch (error) {
+    throw toApiError(error, 'Failed to fetch manufacturer data');
   }
-
-  const res = await fetch(`${API_BASE_URL}/manufacturer/search?name=${encodeURIComponent(name)}`, {
-    method: 'GET',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
-
-  const response = await handleResponse(res);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch manufacturer data');
-  }
-
-  return response.json();
 };
 
 export const getInventoryList = async (params: InventoryListParams = {}): Promise<InventoryListResponse> => {
-  const query = new URLSearchParams();
+  try {
+    const query = new URLSearchParams();
 
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      query.set(key, String(value));
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query.set(key, String(value));
+      }
+    });
+
+    const res = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`, {
+      method: 'GET',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+
+    const response = await handleResponse(res);
+
+    const body: InventoryListResponse = await response
+      .json()
+      .catch(() => ({} as InventoryListResponse));
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error(
+        body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
+      );
     }
-  });
 
-  const res = await fetch(`${API_BASE_URL}/inventory/get-inventory?${query.toString()}`, {
-    method: 'GET',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
-
-  const response = await handleResponse(res);
-
-  const body: InventoryListResponse = await response
-    .json()
-    .catch(() => ({} as InventoryListResponse));
-
-  if (!response.ok && response.status !== 404) {
-    throw new Error(
-      body?.error || body?.message || `Failed to fetch inventory data (HTTP ${response.status})`
-    );
+    return body;
+  } catch (error) {
+    throw toApiError(error, 'Failed to fetch inventory data');
   }
-
-  return body;
 };
 
 export const addInventory = async (item: InventoryItem): Promise<{ success: boolean; message: string }> => {
 
-  const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
-    method: 'POST',
-    headers: getHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(item), // Changed from payload to item
-  });
-  const response = await handleResponse(res);
-  if (!response.ok) {
-    try {
-      const errorData = await response.json();
-      console.error("Backend Validation Error Details:", errorData);
-    } catch (e) {
-      console.error("Could not parse backend error body.", e);
+  try {
+    const res = await fetch(`${API_BASE_URL}/inventory/add-inventory`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(item), // Changed from payload to item
+    });
+    const response = await handleResponse(res);
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        console.error("Backend Validation Error Details:", errorData);
+      } catch (e) {
+        console.error("Could not parse backend error body.", e);
+      }
+      throw new Error(`Failed to save inventory item: ${response.statusText}`);
     }
-    throw new Error(`Failed to save inventory item: ${response.statusText}`);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    throw toApiError(error, 'Failed to save inventory item');
+  }
 };
 
 export const deleteInventoryItem = async ({ id, ...params }: { id: number | string; user: string; reason: string }): Promise<void> => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, {
-    method: 'DELETE',
-    headers: getHeaders(),
-    credentials: 'include',
-  });
+  try {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE_URL}/inventory/delete-inventory/${id}?${query}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
 
-  const response = await handleResponse(res);
+    const response = await handleResponse(res);
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body?.error || body?.message || 'Failed to delete inventory item');
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body?.error || body?.message || 'Failed to delete inventory item');
+    }
+  } catch (error) {
+    throw toApiError(error, 'Failed to delete inventory item');
   }
 };
