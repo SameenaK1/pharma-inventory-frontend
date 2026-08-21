@@ -26,7 +26,8 @@ import {
     IconSparkles,
     IconInbox, IconEdit, IconTrash, IconPlus, IconListDetails
 } from '@tabler/icons-react';
-import { getInventoryList, API_BASE_URL, deleteInventoryItem, type InventoryRecord } from '../services/api';
+import { getInventoryList, deleteInventoryItem, type InventoryRecord } from '../services/inventory';
+import { API_BASE_URL } from '../services/apiClient';
 import AddInventory from './addinventory';
 
 type SortOption = 'insert_date' | 'expiry_date' | 'manufacturer_name';

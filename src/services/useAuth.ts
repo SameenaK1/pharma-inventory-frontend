@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { UserProfile, LoginPayload, RegisterPayload } from './api';
+import type { UserProfile, LoginPayload, RegisterPayload } from './user';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 

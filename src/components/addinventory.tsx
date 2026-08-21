@@ -28,14 +28,9 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { debounce } from '../utils/debounce';
-import {
-  addInventory,
-  getMedicineByName,
-  getManufacturerName,
-  type InventoryItem,
-  type Medicine,
-  type Manufacturer
-} from '../services/api';
+import { addInventory, type InventoryItem } from '../services/inventory';
+import { getMedicineByName, type Medicine } from '../services/medicine';
+import { getManufacturerName, type Manufacturer } from '../services/manufacturer';
 
 // Manufacturer type for type safety
 // export type Manufacturer = {

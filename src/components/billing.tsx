@@ -22,7 +22,8 @@ import {
 } from '@mantine/core';
 import { CalendarDays, ChevronDown, FilePlus2, Pill, Printer, Receipt, RotateCcw, Trash2, User } from 'lucide-react';
 import { debounce } from '../utils/debounce';
-import { getMedicineByName, type Medicine } from '../services/api';
+import { getMedicineByName, type Medicine } from '../services/medicine';
+import { getBatchNumbersByMedicine, type BatchInfo } from '../services/inventory';
 
 type BillingItem = {
   id: number;
@@ -80,11 +81,12 @@ export default function Billing() {
   const [items, setItems] = useState<BillingItem[]>(initialItems);
   const [flatDiscount, setFlatDiscount] = useState<number | string>(0);
   const [paymentType, setPaymentType] = useState<string | null>('Cash');
-  const [invoiceNumber, setInvoiceNumber] = useState('INV-2026-0084');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [openSections, setOpenSections] = useState<string[]>(['items', 'summary']);
   const [medicineSuggestions, setMedicineSuggestions] = useState<Record<number, Medicine[]>>({});
   const [medicineSearchLoading, setMedicineSearchLoading] = useState<Record<number, boolean>>({});
+  const [batchOptions, setBatchOptions] = useState<Record<number, BatchInfo[]>>({});
+  const [batchLoading, setBatchLoading] = useState<Record<number, boolean>>({});
   const debouncedSearchers = useRef<Map<number, (name: string) => void>>(new Map());
 
   const totals = useMemo(() => {
@@ -126,6 +128,47 @@ export default function Billing() {
     setItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
   };
 
+  // Loads all batches recorded for the selected medicine so the user can pick one from a dropdown.
+  const loadBatchesForItem = async (id: number, medicineName: string) => {
+    setBatchLoading((prev) => ({ ...prev, [id]: true }));
+    try {
+      const response = await getBatchNumbersByMedicine(medicineName);
+      const batches = response.data || [];
+      setBatchOptions((prev) => ({ ...prev, [id]: batches }));
+
+      const earliestExpiringBatch = [...batches]
+        .filter((batch) => batch.expiryDate)
+        .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0];
+
+      if (earliestExpiringBatch) {
+        setItems((current) => current.map((item) => item.id === id ? {
+          ...item,
+          batchNumber: earliestExpiringBatch.batchNumber,
+          expiryDate: earliestExpiringBatch.expiryDate.slice(0, 7),
+          mrp: earliestExpiringBatch.mrp !== undefined ? Number(earliestExpiringBatch.mrp) : item.mrp,
+          sellingPrice: earliestExpiringBatch.sellingPrice !== undefined ? Number(earliestExpiringBatch.sellingPrice) : item.sellingPrice,
+        } : item));
+      }
+    } catch {
+      setBatchOptions((prev) => ({ ...prev, [id]: [] }));
+    } finally {
+      setBatchLoading((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Populates expiry, MRP and selling price from the batch record chosen for this line item.
+  const handleBatchSelect = (id: number, batchNumber: string | null) => {
+    const batch = (batchOptions[id] || []).find((entry) => entry.batchNumber === batchNumber);
+    setItems((current) => current.map((item) => item.id === id ? {
+      ...item,
+      batchNumber: batchNumber || '',
+      expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 7) : item.expiryDate,
+      // Postgres NUMERIC columns arrive as strings; coerce so downstream math/formatting works.
+      mrp: batch?.mrp !== undefined ? Number(batch.mrp) : item.mrp,
+      sellingPrice: batch?.sellingPrice !== undefined ? Number(batch.sellingPrice) : item.sellingPrice,
+    } : item));
+  };
+
   // Lazily creates one debounced searcher per row so simultaneous edits don't cancel each other.
   const getDebouncedMedicineSearch = (id: number) => {
     if (!debouncedSearchers.current.has(id)) {
@@ -154,18 +197,19 @@ export default function Billing() {
 
   const handleMedicineNameSearch = (id: number, value: string) => {
     updateItem(id, 'medicineName', value);
-    const matched = (medicineSuggestions[id] || []).find((med) => med.name === value);
-    if (matched) {
-      setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
-      return;
-    }
     getDebouncedMedicineSearch(id)(value);
+  };
+
+  // Fired when the user explicitly picks a medicine from the suggestion dropdown.
+  const handleMedicineSelect = (id: number, name: string) => {
+    updateItem(id, 'medicineName', name);
+    setMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+    loadBatchesForItem(id, name);
   };
 
   const clearForm = () => {
     setItems([emptyItem(Date.now())]);
     setFlatDiscount(0);
-    setInvoiceNumber('');
     setInvoiceDate(new Date().toISOString().slice(0, 10));
   };
 
@@ -175,6 +219,8 @@ export default function Billing() {
     debouncedSearchers.current.delete(id);
     setMedicineSuggestions((prev) => { const next = { ...prev }; delete next[id]; return next; });
     setMedicineSearchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setBatchOptions((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setBatchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
   };
 
   // Collapsed section headers get a light blue tint; expanded ones stay neutral.
@@ -190,9 +236,7 @@ export default function Billing() {
       <Paper withBorder p="md" radius="md">
         <Group gap="xs" mb="sm" p="xs" bg="blue.0" style={{ borderRadius: 6 }}><CalendarDays size={18} color="var(--mantine-color-blue-7)" /><Text fw={700} c="blue.8">Invoice information</Text></Group>
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
-          <TextInput label="Invoice number" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
           <TextInput label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.currentTarget.value)} required disabled styles={disabledFieldStyles} />
-          <Select label="Bill type" data={['Retail invoice', 'Tax invoice', 'Estimate']} defaultValue="Retail invoice" />
           <TextInput label="Doctor name" placeholder="Dr. Ananya Sharma" />
           <Select label="Payment type" data={['Cash', 'UPI', 'Card', 'Credit']} value={paymentType} onChange={setPaymentType} />
           {(paymentType === 'UPI' || paymentType === 'Card') && <TextInput label="Payment reference" placeholder="UTR / last 4 digits" />}
@@ -216,9 +260,7 @@ export default function Billing() {
             <NumberInput label="Age" min={0} max={120} placeholder="Years" />
             <Select label="Gender" placeholder="Select gender" data={['Female', 'Male', 'Other', 'Prefer not to say']} />
             <TextInput label="Address" placeholder="Billing address" />
-            <TextInput label="GSTIN (optional)" placeholder="For business customers" />
-            <TextInput label="Prescription / Rx no. (optional)" placeholder="Doctor prescription reference" />
-            <TextInput label="Prescription date (optional)" type="date" />
+            <TextInput label="GSTIN (optional)" placeholder="For business customers" />           
           </SimpleGrid></Accordion.Panel>
         </Accordion.Item>
 
@@ -229,16 +271,16 @@ export default function Billing() {
               <Text size="xs" c="dimmed">GST is inferred from the selected HSN code: 3003 / 2106 = 5%/18%, 3004 / 9018 / 3005 = 12%, 3304 = 18%.</Text>
               <Table verticalSpacing="xs" horizontalSpacing="xs" highlightOnHover style={{ tableLayout: 'fixed', width: '100%' }} fz="xs">
                 <Table.Thead><Table.Tr>
-                  <Table.Th style={{ width: '16%' }}>Medicine</Table.Th>
-                  <Table.Th style={{ width: '8%' }}>Batch</Table.Th>
-                  <Table.Th style={{ width: '8%' }}>Expiry</Table.Th>
-                  <Table.Th style={{ width: '6%' }}>Qty</Table.Th>
-                  <Table.Th style={{ width: '7%' }}>Pack</Table.Th>
+                  <Table.Th style={{ width: '15%' }}>Medicine</Table.Th>
+                  <Table.Th style={{ width: '7%' }}>Batch</Table.Th>
+                  <Table.Th style={{ width: '11%' }}>Expiry</Table.Th>
+                  <Table.Th style={{ width: '5%' }}>Qty</Table.Th>
+                  <Table.Th style={{ width: '6%' }}>Pack</Table.Th>
                   <Table.Th style={{ width: '7%' }}>MRP</Table.Th>
                   <Table.Th style={{ width: '7%' }}>Selling</Table.Th>
                   <Table.Th style={{ width: '8%' }}>Discount</Table.Th>
                   <Table.Th style={{ width: '8%' }}>GST</Table.Th>
-                  <Table.Th style={{ width: '9%' }}>HSN code</Table.Th>
+                  <Table.Th style={{ width: '8%' }}>HSN code</Table.Th>
                   <Table.Th style={{ width: '8%' }}>Taxable</Table.Th>
                   <Table.Th style={{ width: '8%' }}>Total</Table.Th>
                   <Table.Th w={48} ta="center">Remove</Table.Th>
@@ -253,20 +295,37 @@ export default function Billing() {
                         placeholder="Medicine name"
                         value={item.medicineName}
                         data={(medicineSuggestions[item.id] || []).map((med) => ({
-                          value: med.name,
-                          label: med.manufacturer_name ? `${med.name} — ${med.manufacturer_name}` : med.name,
+                          value: `${med.name}__${med.id}`,
+                          label: med.name,
                         }))}
-                        onChange={(value) => handleMedicineNameSearch(item.id, value)}
+                        onChange={(value) => {
+                          const cleanName = value.includes('__') ? value.split('__')[0] : value;
+                          handleMedicineNameSearch(item.id, cleanName);
+                        }}
+                        onOptionSubmit={(selectedValue) => {
+                          const [selectedId] = selectedValue.split('__');
+
+
+                          handleMedicineSelect(item.id, selectedId);
+                        }}
                         rightSection={medicineSearchLoading[item.id] ? <Loader size="xs" /> : null}
                         comboboxProps={{ withinPortal: true, width: 300, position: 'bottom-start', offset: 2 }}
                         renderOption={({ option }) => {
-                          const med = (medicineSuggestions[item.id] || []).find((m) => m.name === option.value);
+                          const [name, medId] = option.value.split('__');
+                          const med = (medicineSuggestions[item.id] || []).find(
+                            (m) => String(m.id) === String(medId)
+                          );
+
                           return (
                             <Stack gap={0}>
-                              <Text size="sm" fw={600}>{med?.name ?? option.value}</Text>
+                              <Text size="sm" fw={600}>
+                                {med?.name ?? name}
+                              </Text>
                               {med && (
                                 <Text size="xs" c="dimmed">
-                                  {[med.manufacturer_name, med.type, med.pack_size_label].filter(Boolean).join(' • ')}
+                                  {[med.manufacturer_name, med.type, med.pack_size_label]
+                                    .filter(Boolean)
+                                    .join(' • ')}
                                 </Text>
                               )}
                             </Stack>
@@ -274,8 +333,19 @@ export default function Billing() {
                         }}
                       />
                     </Table.Td>
-                    <Table.Td><TextInput size="xs" placeholder="Batch" value={item.batchNumber} onChange={(event) => updateItem(item.id, 'batchNumber', event.currentTarget.value)} /></Table.Td>
-                    <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateItem(item.id, 'expiryDate', event.currentTarget.value)} /></Table.Td>
+                    <Table.Td>
+                      <Select
+                        size="xs"
+                        placeholder="Select batch"
+                        data={(batchOptions[item.id] || []).map((batch) => ({ value: batch.batchNumber, label: batch.batchNumber }))}
+                        value={item.batchNumber || null}
+                        onChange={(value) => handleBatchSelect(item.id, value)}
+                        rightSection={batchLoading[item.id] ? <Loader size="xs" /> : null}
+                        searchable
+                        comboboxProps={{ withinPortal: true }}
+                      />
+                    </Table.Td>
+                    <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateItem(item.id, 'expiryDate', event.currentTarget.value)} styles={{ input: { paddingInline: 6 } }} /></Table.Td>
                     <Table.Td><NumberInput size="xs" min={1} value={item.quantity} onChange={(value) => updateItem(item.id, 'quantity', Number(value) || 0)} hideControls /></Table.Td>
                     <Table.Td><Select size="xs" data={['Strip', 'Bottle', 'Box', 'Tube', 'Unit']} value={item.packUnit} onChange={(value) => updateItem(item.id, 'packUnit', value || 'Unit')} /></Table.Td>
                     <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.mrp} onChange={(value) => updateItem(item.id, 'mrp', Number(value) || 0)} hideControls /></Table.Td>

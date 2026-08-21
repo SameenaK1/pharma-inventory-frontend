@@ -26,7 +26,7 @@ import {
   requestPasswordResetOtp,
   verifyPasswordResetOtp,
   resetPassword,
-} from '../services/api';
+} from '../services/user';
 
 const ROLE_OPTIONS = [
   { label: 'Pharmacist', value: 'pharmacist' },

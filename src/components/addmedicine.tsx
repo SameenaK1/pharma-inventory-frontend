@@ -20,8 +20,10 @@ import {
 } from '@mantine/core';
 import { UploadCloud, Plus, X } from 'lucide-react';
 import { debounce } from '../utils/debounce';
-import type { Medicine } from '../services/api';
-import { getMedicineByName, getManufacturerName, addInventory, type InventoryItem } from '../services/api';
+import type { Medicine } from '../services/medicine';
+import { getMedicineByName } from '../services/medicine';
+import { getManufacturerName } from '../services/manufacturer';
+import { addInventory, type InventoryItem } from '../services/inventory';
 
 // Manufacturer type for type safety
 export type Manufacturer = {
