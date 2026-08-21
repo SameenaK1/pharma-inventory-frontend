@@ -260,9 +260,7 @@ export default function Billing() {
             <NumberInput label="Age" min={0} max={120} placeholder="Years" />
             <Select label="Gender" placeholder="Select gender" data={['Female', 'Male', 'Other', 'Prefer not to say']} />
             <TextInput label="Address" placeholder="Billing address" />
-            <TextInput label="GSTIN (optional)" placeholder="For business customers" />
-            <TextInput label="Prescription / Rx no. (optional)" placeholder="Doctor prescription reference" />
-            <TextInput label="Prescription date (optional)" type="date" />
+            <TextInput label="GSTIN (optional)" placeholder="For business customers" />           
           </SimpleGrid></Accordion.Panel>
         </Accordion.Item>
 
