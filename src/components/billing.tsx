@@ -381,7 +381,7 @@ export default function Billing() {
         flatDiscount: flatDiscountAmount,
         finalPayable: totals.payable,
         items: totals.calculated.map((item) => ({
-          medicineId: item.id,
+          medicineId:medicineSuggestions[item.id]?.find((med) => med.name === item.medicineName)?.id || null,
           medicineName: item.medicineName.trim(),
           batch: item.batchNumber.trim(),
           expiryDate: `${item.expiryDate}-01`,
