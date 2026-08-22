@@ -1,5 +1,5 @@
 // components/Invoices.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
   ActionIcon,
@@ -10,6 +10,7 @@ import {
   Divider,
   Group,
   Modal,
+  NumberInput,
   Pagination,
   Paper,
   ScrollArea,
@@ -28,9 +29,11 @@ import {
   IconInbox,
   IconListDetails,
   IconPencil,
+  IconPlus,
   IconReceipt,
   IconRefresh,
   IconSearch,
+  IconTrash,
 } from '@tabler/icons-react';
 import {
   getBillingInvoice,
@@ -52,6 +55,50 @@ const PAYMENT_COLORS: Record<string, string> = {
   UPI: 'violet',
   Card: 'blue',
   Credit: 'orange',
+};
+
+const HSN_OPTIONS = [
+  { value: '30049099', label: '30049099 - Medicaments (GST 12%)' },
+  { value: '30039011', label: '30039011 - Ayurvedic medicaments (GST 5%)' },
+  { value: '30039099', label: '30039099 - Other medicaments (GST 5%)' },
+  { value: '90189099', label: '90189099 - Medical instruments (GST 12%)' },
+  { value: '33049900', label: '33049900 - Cosmetic / skin care (GST 18%)' },
+  { value: '30051090', label: '30051090 - Adhesive dressings & bandages (GST 12%)' },
+  { value: '21069099', label: '21069099 - Nutraceuticals / supplements (GST 18%)' },
+];
+
+const GST_SLABS = [0, 5, 12, 18, 28, 40];
+
+const getGstRate = (hsnCode: string) => {
+  if (hsnCode.startsWith('3004')) return 12;
+  if (hsnCode.startsWith('3003')) return 5;
+  if (hsnCode.startsWith('9018')) return 12;
+  if (hsnCode.startsWith('3304')) return 18;
+  if (hsnCode.startsWith('2106')) return 18;
+  return 0;
+};
+
+// Server-side calls always use parameterized queries, so these allow-lists are defense-in-depth
+// (reject SQL metacharacters / script payloads early) rather than the actual SQL-injection fix.
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+const NAME_REGEX = /^[A-Za-z][A-Za-z .'-]{1,99}$/;
+
+const getPhoneError = (value: string) => (value.trim() && !PHONE_REGEX.test(value.trim()) ? 'Enter a valid 10-digit mobile number' : null);
+const getNameError = (value: string) => (value.trim() && !NAME_REGEX.test(value.trim()) ? 'Only letters, spaces, apostrophes, hyphens and periods are allowed' : null);
+const getAgeError = (value: string) => (value !== '' && Number(value) <= 2 ? 'Age must be greater than 2' : null);
+const getExpiryError = (value: string) => (value && value < new Date().toISOString().slice(0, 10) ? 'Expiry date cannot be in the past' : null);
+
+type EditableInvoiceItem = {
+  id: number;
+  medicineId: number | null;
+  medicineName: string;
+  batch: string;
+  expiryDate: string;
+  hsnCode: string;
+  qty: number;
+  pack: string;
+  mrp: number;
+  sellingPrice: number;
 };
 
 // Postgres DECIMAL columns arrive as strings, so coerce before formatting.
@@ -99,8 +146,11 @@ export default function Invoices() {
   // Edit modal state
   const [editInvoice, setEditInvoice] = useState<BillingInvoiceListItem | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editItems, setEditItems] = useState<EditableInvoiceItem[]>([]);
+  const [editItemsLoading, setEditItemsLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const nextEditItemId = useRef(-1);
 
   // Reset to the first page whenever search or page size changes.
   useEffect(() => {
@@ -168,7 +218,7 @@ export default function Invoices() {
     }
   };
 
-  const openEdit = (row: BillingInvoiceListItem) => {
+  const openEdit = async (row: BillingInvoiceListItem) => {
     setEditInvoice(row);
     setEditError(null);
     setEditForm({
@@ -180,16 +230,138 @@ export default function Invoices() {
       patientGender: row.patient_gender ?? '',
       address: row.address ?? '',
       gstin: row.gstin ?? '',
+      flatDiscount: row.flat_discount != null ? String(row.flat_discount) : '0',
     });
+    setEditItems([]);
+    setEditItemsLoading(true);
+    try {
+      const response = await getBillingInvoice(row.invoice_number);
+      const items = response.data?.items ?? [];
+      setEditItems(
+        items.map((item) => ({
+          id: item.item_id,
+          medicineId: item.medicine_id,
+          medicineName: item.medicine_name,
+          batch: item.batch,
+          expiryDate: String(item.expiry_date).slice(0, 10),
+          hsnCode: item.hsn_code ?? '',
+          qty: item.qty,
+          pack: item.pack,
+          mrp: Number(item.mrp),
+          sellingPrice: Number(item.selling_price),
+        }))
+      );
+      if (!response.data) setEditError('No line items found for this invoice.');
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to load invoice items.');
+    } finally {
+      setEditItemsLoading(false);
+    }
   };
 
   const setField = (field: string, value: string) =>
     setEditForm((prev) => ({ ...prev, [field]: value }));
 
+  const updateEditItem = (id: number, field: keyof EditableInvoiceItem, value: string | number) =>
+    setEditItems((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+
+  const addEditItem = () => {
+    const id = nextEditItemId.current--;
+    setEditItems((current) => [
+      ...current,
+      { id, medicineId: null, medicineName: '', batch: '', expiryDate: '', hsnCode: '', qty: 1, pack: 'Strip', mrp: 0, sellingPrice: 0 },
+    ]);
+  };
+
+  const removeEditItem = (id: number) => {
+    setEditItems((current) => (current.length <= 1 ? current : current.filter((item) => item.id !== id)));
+  };
+
+  // Mirrors the calculation used when an invoice is first created (billing.tsx) so recalculated
+  // totals stay consistent: MRP/selling price are tax-inclusive, taxable value is derived from GST rate.
+  const editTotals = useMemo(() => {
+    const flatDiscountAmount = Number(editForm.flatDiscount || 0);
+    const calculated = editItems.map((item) => {
+      const total = item.qty * item.sellingPrice;
+      const discountAmount = Math.max(0, (item.mrp - item.sellingPrice) * item.qty);
+      const gstRate = getGstRate(item.hsnCode);
+      const taxable = total / (1 + gstRate / 100);
+      const gst = total - taxable;
+      return { ...item, total, discountAmount, gstRate, taxable, gst };
+    });
+    const taxable = calculated.reduce((sum, item) => sum + item.taxable, 0);
+    const gst = calculated.reduce((sum, item) => sum + item.gst, 0);
+    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0) + flatDiscountAmount;
+    const beforeRound = taxable + gst - flatDiscountAmount;
+    const gstBreakdown = GST_SLABS.map((rate) => {
+      const rows = calculated.filter((item) => item.gstRate === rate);
+      const slabTaxable = rows.reduce((sum, item) => sum + item.taxable, 0);
+      const slabGst = rows.reduce((sum, item) => sum + item.gst, 0);
+      return { rate, taxable: slabTaxable, cgst: slabGst / 2, sgst: slabGst / 2, igst: 0 };
+    });
+    const totalQuantity = editItems.reduce((sum, item) => sum + item.qty, 0);
+    const grossAmount = calculated.reduce((sum, item) => sum + item.qty * item.mrp, 0);
+    return {
+      calculated,
+      discount,
+      beforeRound,
+      preDiscountSubtotal: taxable + gst,
+      gstBreakdown,
+      totalQuantity,
+      grossAmount,
+      flatDiscountAmount,
+      payable: Math.max(0, beforeRound),
+    };
+  }, [editItems, editForm.flatDiscount]);
+
   const handleSaveEdit = async () => {
     if (!editInvoice) return;
+
+    const phoneError = getPhoneError(editForm.phoneNumber ?? '');
+    if (phoneError) return setEditError(phoneError);
+
+    const ageError = getAgeError(editForm.patientAge ?? '');
+    if (ageError) return setEditError(ageError);
+
+    const doctorNameError = getNameError(editForm.doctorName ?? '');
+    if (doctorNameError) return setEditError(`Doctor name: ${doctorNameError}`);
+
+    const customerNameError = getNameError(editForm.customerName ?? '');
+    if (customerNameError) return setEditError(`Customer name: ${customerNameError}`);
+
+    const invalidItem = editTotals.calculated.find((item) => {
+      if (!item.medicineName.trim() || !item.batch.trim() || !item.expiryDate || item.qty <= 0) return true;
+      if (getExpiryError(item.expiryDate)) return true;
+      if (!item.hsnCode.trim()) return true;
+      if (!Number.isFinite(item.sellingPrice) || item.sellingPrice <= 0) return true;
+      if (item.mrp > 0 && item.sellingPrice > item.mrp) return true;
+      return item.discountAmount > item.sellingPrice * item.qty;
+    });
+    if (invalidItem) {
+      if (!invalidItem.medicineName.trim() || !invalidItem.batch.trim() || !invalidItem.expiryDate || invalidItem.qty <= 0) {
+        setEditError('Complete the medicine name, batch, expiry date, and quantity for every item.');
+      } else if (getExpiryError(invalidItem.expiryDate)) {
+        setEditError(getExpiryError(invalidItem.expiryDate) as string);
+      } else if (!invalidItem.hsnCode.trim()) {
+        setEditError('HSN code is required for every medicine item.');
+      } else if (!Number.isFinite(invalidItem.sellingPrice) || invalidItem.sellingPrice <= 0) {
+        setEditError('Selling price must be greater than zero for every medicine item.');
+      } else if (invalidItem.mrp > 0 && invalidItem.sellingPrice > invalidItem.mrp) {
+        setEditError('Selling price cannot be greater than MRP.');
+      } else {
+        setEditError('Item discount cannot be greater than the item selling amount.');
+      }
+      return;
+    }
+
+    if (editTotals.flatDiscountAmount < 0) return setEditError('Flat discount cannot be negative.');
+    if (editTotals.flatDiscountAmount > editTotals.preDiscountSubtotal) {
+      return setEditError('Flat discount cannot be greater than the subtotal.');
+    }
+
     setEditSaving(true);
     setEditError(null);
+     
     try {
       await updateBillingInvoice(editInvoice.invoice_number, {
         doctorName: editForm.doctorName.trim() || undefined,
@@ -200,6 +372,29 @@ export default function Invoices() {
         patientGender: editForm.patientGender || undefined,
         address: editForm.address.trim() || undefined,
         gstin: editForm.gstin.trim() || undefined,
+        taxBreakdown: editTotals.gstBreakdown,
+        totalQuantity: editTotals.totalQuantity,
+        grossAmount: editTotals.grossAmount,
+        discountAmount: editTotals.discount,
+        subtotal: editTotals.beforeRound,
+        flatDiscount: editTotals.flatDiscountAmount,
+        finalPayable: editTotals.payable,
+        items: editTotals.calculated.map((item) => ({
+          medicineId: item.medicineId,
+          medicineName: item.medicineName.trim(),
+          batch: item.batch.trim(),
+          expiryDate: item.expiryDate,
+          qty: item.qty,
+          pack: item.pack,
+          mrp: item.mrp,
+          sellingPrice: item.sellingPrice,
+          discount: item.discountAmount,
+          gstPercentage: item.gstRate,
+          gstAmount: item.gst,
+          hsnCode: item.hsnCode || undefined,
+          taxableAmount: item.taxable,
+          total: item.total,
+        })),
       });
       setEditInvoice(null);
       setRefreshKey((key) => key + 1);
@@ -209,6 +404,7 @@ export default function Invoices() {
       setEditSaving(false);
     }
   };
+
 
   const invoice = viewDetail?.invoice ?? viewInvoice;
   const items = viewDetail?.items ?? [];
@@ -553,20 +749,16 @@ export default function Invoices() {
             <Text fw={700}>Modify {editInvoice?.invoice_number}</Text>
           </Group>
         }
-        size={520}
+        size={960}
         centered
         overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
       >
-        <Stack gap="sm">
+        <Stack gap="md">
           {editError && (
             <Alert icon={<IconAlertCircle size={18} />} color="red" variant="light" radius="md">
               {editError}
             </Alert>
           )}
-
-          <Text size="xs" c="dimmed">
-            Only customer and payment details can be changed. Line items and amounts are locked once an invoice is generated.
-          </Text>
 
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <TextInput
@@ -619,13 +811,163 @@ export default function Invoices() {
               onChange={(event) => setField('address', event.currentTarget.value)}
             />
           </SimpleGrid>
+
+          <Divider />
+
+          <Group justify="space-between">
+            <Text fw={600}>Medicine items</Text>
+            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={addEditItem}>
+              Add medicine
+            </Button>
+          </Group>
+
+          {editItemsLoading && (
+            <Stack gap="xs">
+              <Skeleton height={16} radius="sm" />
+              <Skeleton height={16} radius="sm" />
+            </Stack>
+          )}
+
+          {!editItemsLoading && (
+            <ScrollArea offsetScrollbars scrollbarSize={8}>
+              <Table striped withTableBorder verticalSpacing="xs" horizontalSpacing="xs" fz="xs" miw={900}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Medicine</Table.Th>
+                    <Table.Th>Batch</Table.Th>
+                    <Table.Th>Expiry</Table.Th>
+                    <Table.Th>HSN code</Table.Th>
+                    <Table.Th ta="right">Qty</Table.Th>
+                    <Table.Th>Pack</Table.Th>
+                    <Table.Th ta="right">MRP</Table.Th>
+                    <Table.Th ta="right">Selling</Table.Th>
+                    <Table.Th w={40}></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {editItems.map((item) => (
+                    <Table.Tr key={item.id}>
+                      <Table.Td>
+                        <TextInput
+                          size="xs"
+                          placeholder="Medicine name"
+                          value={item.medicineName}
+                          onChange={(event) => updateEditItem(item.id, 'medicineName', event.currentTarget.value)}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <TextInput
+                          size="xs"
+                          placeholder="Batch"
+                          value={item.batch}
+                          onChange={(event) => updateEditItem(item.id, 'batch', event.currentTarget.value)}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <TextInput
+                          size="xs"
+                          type="date"
+                          value={item.expiryDate}
+                          onChange={(event) => updateEditItem(item.id, 'expiryDate', event.currentTarget.value)}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Select
+                          size="xs"
+                          placeholder="Select HSN"
+                          searchable
+                          data={HSN_OPTIONS}
+                          value={item.hsnCode}
+                          onChange={(value) => updateEditItem(item.id, 'hsnCode', value ?? '')}
+                        />
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <NumberInput
+                          size="xs"
+                          min={1}
+                          value={item.qty}
+                          onChange={(value) => updateEditItem(item.id, 'qty', Number(value) || 0)}
+                          hideControls
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <TextInput
+                          size="xs"
+                          value={item.pack}
+                          onChange={(event) => updateEditItem(item.id, 'pack', event.currentTarget.value)}
+                        />
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <NumberInput
+                          size="xs"
+                          min={0}
+                          decimalScale={2}
+                          value={item.mrp}
+                          onChange={(value) => updateEditItem(item.id, 'mrp', Number(value) || 0)}
+                          hideControls
+                        />
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <NumberInput
+                          size="xs"
+                          min={0}
+                          decimalScale={2}
+                          value={item.sellingPrice}
+                          onChange={(value) => updateEditItem(item.id, 'sellingPrice', Number(value) || 0)}
+                          hideControls
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="sm"
+                          onClick={() => removeEditItem(item.id)}
+                          disabled={editItems.length <= 1}
+                          title="Remove item"
+                        >
+                          <IconTrash style={{ width: 16, height: 16 }} />
+                        </ActionIcon>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+
+          <Divider />
+
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            <NumberInput
+              label="Flat discount"
+              prefix="₹"
+              min={0}
+              decimalScale={2}
+              value={editForm.flatDiscount ?? '0'}
+              onChange={(value) => setField('flatDiscount', String(value ?? 0))}
+              hideControls
+            />
+            <div>
+              <Text size="xs" c="dimmed">Total quantity</Text>
+              <Text fw={600}>{editTotals.totalQuantity}</Text>
+            </div>
+            <div>
+              <Text size="xs" c="dimmed">Subtotal</Text>
+              <Text fw={600}>{money(editTotals.beforeRound)}</Text>
+            </div>
+            <div>
+              <Text size="xs" c="dimmed">Final payable</Text>
+              <Text fw={700} c="blue">{money(editTotals.payable)}</Text>
+            </div>
+          </SimpleGrid>
         </Stack>
 
         <Group justify="flex-end" gap="sm" mt="lg">
           <Button variant="light" color="gray" onClick={() => setEditInvoice(null)}>
             Cancel
           </Button>
-          <Button color="blue" onClick={handleSaveEdit} loading={editSaving} disabled={editSaving}>
+          <Button color="blue" onClick={handleSaveEdit} loading={editSaving} disabled={editSaving || editItemsLoading}>
             Save changes
           </Button>
         </Group>

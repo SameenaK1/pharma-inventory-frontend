@@ -158,13 +158,24 @@ export interface UpdateBillingInvoicePayload {
   patientGender?: string;
   address?: string;
   gstin?: string;
+  taxBreakdown: Array<{ rate: number; taxable: number; cgst: number; sgst: number; igst: number }>;
+  totalQuantity: number;
+  grossAmount: number;
+  discountAmount: number;
+  subtotal: number;
+  flatDiscount: number;
+  finalPayable: number;
+  items: CreateBillingInvoicePayload['items'];
 }
 
 export interface UpdateBillingInvoiceResponse {
   success: boolean;
   message?: string;
   error?: string;
-  data?: BillingInvoiceListItem;
+  data?: {
+    invoice: BillingInvoiceListItem;
+    items: BillingInvoiceItem[];
+  };
 }
 
 export const listBillingInvoices = async (
