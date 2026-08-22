@@ -168,12 +168,24 @@ export default function Billing() {
     setBatchLoading((prev) => ({ ...prev, [id]: true }));
     try {
       const response = await getBatchNumbersByMedicine(medicineName);
-      const batches = response.data || [];
+      const rawBatches = response.data || [];
+
+      // Dedupe by batch number (preferring the earliest-expiring duplicate)
+      // and sort so the dropdown lists earliest-expiring batches first.
+      const byBatchNumber = new Map<string, BatchInfo>();
+      for (const batch of rawBatches) {
+        const key = (batch.batchNumber || '').trim();
+        if (!key) continue;
+        const existing = byBatchNumber.get(key);
+        if (!existing || (batch.expiryDate || '') < (existing.expiryDate || '')) {
+          byBatchNumber.set(key, batch);
+        }
+      }
+      const batches = [...byBatchNumber.values()].sort((a, b) => (a.expiryDate || '').localeCompare(b.expiryDate || ''));
+
       setBatchOptions((prev) => ({ ...prev, [id]: batches }));
 
-      const earliestExpiringBatch = [...batches]
-        .filter((batch) => batch.expiryDate)
-        .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0];
+      const earliestExpiringBatch = batches.find((batch) => batch.expiryDate);
 
       if (earliestExpiringBatch) {
         setItems((current) => current.map((item) => item.id === id ? {
@@ -369,6 +381,7 @@ export default function Billing() {
         flatDiscount: flatDiscountAmount,
         finalPayable: totals.payable,
         items: totals.calculated.map((item) => ({
+          medicineId: item.id,
           medicineName: item.medicineName.trim(),
           batch: item.batchNumber.trim(),
           expiryDate: `${item.expiryDate}-01`,
@@ -526,6 +539,7 @@ export default function Billing() {
                         error={submitAttempted && !item.batchNumber.trim()}
                         data={(batchOptions[item.id] || []).map((batch) => batch.batchNumber)}
                         value={item.batchNumber}
+                        filter={({ options }) => options}
                         onChange={(value) => {
                           updateItem(item.id, 'batchNumber', value);
                         }}
