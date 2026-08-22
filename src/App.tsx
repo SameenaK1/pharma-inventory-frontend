@@ -10,6 +10,7 @@ import AddInventory from './components/addmedicine';
 import Inventory from './components/inventory';
 import NotFoundPage from './components/notfound';
 import Billing from './components/billing';
+import Invoices from './components/Invoices';
 
 // 🌟 Ensure your Auth imports are correct based on your file paths
 import ProtectedRoute from './services/ProtectedRoute';
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/addmedicine" element={<AddInventory />} />
                 <Route path="/billing" element={<Billing />} />
+                <Route path="/invoices" element={<Invoices />} />
               </Route>
             </Route>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Stack, NavLink, ActionIcon, Tooltip, Box, Group, Title } from '@mantine/core';
-import { LayoutDashboard, Pill, Boxes, ShoppingCart, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Pill, Boxes, ShoppingCart, Receipt, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
@@ -12,6 +12,7 @@ export default function Sidebar() {
     { id: 'inventory', label: 'Inventory', icon: <Boxes size={19} />, path: '/inventory' },
     { id: 'addmedicine', label: 'Add Medicine', icon: <Pill size={19} />, path: '/addmedicine' },
     { id: 'billing', label: 'New Billing', icon: <ShoppingCart size={19} />, path: '/billing' },
+    { id: 'invoices', label: 'Invoices', icon: <Receipt size={19} />, path: '/invoices' },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={19} />, path: '/analytics' },
     { id: 'settings', label: 'Settings', icon: <Settings size={19} />, path: '/settings' },
   ];
