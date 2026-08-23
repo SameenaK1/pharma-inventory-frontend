@@ -92,7 +92,6 @@ const NAME_REGEX = /^[A-Za-z][A-Za-z .'-]{1,99}$/;
 
 const getPhoneError = (value: string) => (value.trim() && !PHONE_REGEX.test(value.trim()) ? 'Enter a valid 10-digit mobile number' : null);
 const getNameError = (value: string) => (value.trim() && !NAME_REGEX.test(value.trim()) ? 'Only letters, spaces, apostrophes, hyphens and periods are allowed' : null);
-const getAgeError = (value: string) => (value !== '' && Number(value) <= 2 ? 'Age must be greater than 2' : null);
 const getExpiryError = (value: string) => (value && value < new Date().toISOString().slice(0, 10) ? 'Expiry date cannot be in the past' : null);
 
 type EditableInvoiceItem = {
@@ -432,9 +431,6 @@ export default function Invoices() {
 
     const phoneError = getPhoneError(editForm.phoneNumber ?? '');
     if (phoneError) return setEditError(phoneError);
-
-    const ageError = getAgeError(editForm.patientAge ?? '');
-    if (ageError) return setEditError(ageError);
 
     const doctorNameError = getNameError(editForm.doctorName ?? '');
     if (doctorNameError) return setEditError(`Doctor name: ${doctorNameError}`);
