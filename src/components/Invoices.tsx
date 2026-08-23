@@ -1,14 +1,17 @@
 // components/Invoices.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 import {
   ActionIcon,
   Alert,
+  Autocomplete,
   Badge,
   Button,
   Container,
   Divider,
   Group,
+  Loader,
   Modal,
   NumberInput,
   Pagination,
@@ -25,6 +28,7 @@ import {
 } from '@mantine/core';
 import {
   IconAlertCircle,
+  IconCircleCheck,
   IconEye,
   IconInbox,
   IconListDetails,
@@ -44,6 +48,9 @@ import {
   type BillingInvoiceListItem,
 } from '../services/billing';
 import { API_BASE_URL } from '../services/apiClient';
+import { getMedicineByName, type Medicine } from '../services/medicine';
+import { getBatchNumbersByMedicine, type BatchInfo } from '../services/inventory';
+import { debounce } from '../utils/debounce';
 
 const TABLE_COLUMN_COUNT = 8;
 const SKELETON_ROW_COUNT = 6;
@@ -60,7 +67,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 const HSN_OPTIONS = [
   { value: '30049099', label: '30049099 - Medicaments (GST 12%)' },
   { value: '30039011', label: '30039011 - Ayurvedic medicaments (GST 5%)' },
-  { value: '30039099', label: '30039099 - Other medicaments (GST 5%)' },
+
   { value: '90189099', label: '90189099 - Medical instruments (GST 12%)' },
   { value: '33049900', label: '33049900 - Cosmetic / skin care (GST 18%)' },
   { value: '30051090', label: '30051090 - Adhesive dressings & bandages (GST 12%)' },
@@ -151,6 +158,12 @@ export default function Invoices() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const nextEditItemId = useRef(-1);
+  const [editMedicineSuggestions, setEditMedicineSuggestions] = useState<Record<number, Medicine[]>>({});
+  const [editMedicineSearchLoading, setEditMedicineSearchLoading] = useState<Record<number, boolean>>({});
+  const editDebouncedSearchers = useRef<Map<number, (name: string) => void>>(new Map());
+  const [editBatchOptions, setEditBatchOptions] = useState<Record<number, BatchInfo[]>>({});
+  const [editBatchLoading, setEditBatchLoading] = useState<Record<number, boolean>>({});
+  const medicineNameRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Reset to the first page whenever search or page size changes.
   useEffect(() => {
@@ -271,10 +284,110 @@ export default function Invoices() {
       ...current,
       { id, medicineId: null, medicineName: '', batch: '', expiryDate: '', hsnCode: '', qty: 1, pack: 'Strip', mrp: 0, sellingPrice: 0 },
     ]);
+    // Focus the medicine name input for the newly added row after render
+    setTimeout(() => {
+      const input = medicineNameRefs.current[id];
+      if (input) input.focus();
+    }, 0);
   };
 
   const removeEditItem = (id: number) => {
     setEditItems((current) => (current.length <= 1 ? current : current.filter((item) => item.id !== id)));
+    editDebouncedSearchers.current.delete(id);
+    setEditMedicineSuggestions((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setEditMedicineSearchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setEditBatchOptions((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setEditBatchLoading((prev) => { const next = { ...prev }; delete next[id]; return next; });
+  };
+
+  // Loads all batches recorded for the selected medicine so expiry/MRP/selling price can auto-fill.
+  const loadBatchesForEditItem = async (id: number, medicineName: string) => {
+    setEditBatchLoading((prev) => ({ ...prev, [id]: true }));
+    try {
+      const response = await getBatchNumbersByMedicine(medicineName);
+      const rawBatches = response.data || [];
+
+      // Dedupe by batch number (preferring the earliest-expiring duplicate)
+      // and sort so the dropdown lists earliest-expiring batches first.
+      const byBatchNumber = new Map<string, BatchInfo>();
+      for (const batch of rawBatches) {
+        const key = (batch.batchNumber || '').trim();
+        if (!key) continue;
+        const existing = byBatchNumber.get(key);
+        if (!existing || (batch.expiryDate || '') < (existing.expiryDate || '')) {
+          byBatchNumber.set(key, batch);
+        }
+      }
+      const batches = [...byBatchNumber.values()].sort((a, b) => (a.expiryDate || '').localeCompare(b.expiryDate || ''));
+
+      setEditBatchOptions((prev) => ({ ...prev, [id]: batches }));
+
+      const earliestExpiringBatch = batches.find((batch) => batch.expiryDate);
+      if (earliestExpiringBatch) {
+        setEditItems((current) => current.map((item) => item.id === id ? {
+          ...item,
+          batch: earliestExpiringBatch.batchNumber,
+          expiryDate: earliestExpiringBatch.expiryDate.slice(0, 10),
+          mrp: earliestExpiringBatch.mrp !== undefined ? Number(earliestExpiringBatch.mrp) : item.mrp,
+          sellingPrice: earliestExpiringBatch.sellingPrice !== undefined ? Number(earliestExpiringBatch.sellingPrice) : item.sellingPrice,
+        } : item));
+      }
+    } catch {
+      setEditBatchOptions((prev) => ({ ...prev, [id]: [] }));
+    } finally {
+      setEditBatchLoading((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Populates expiry, MRP and selling price from the batch record chosen for this line item.
+  const handleEditBatchSelect = (id: number, batchNumber: string | null) => {
+    const batch = (editBatchOptions[id] || []).find((entry) => entry.batchNumber === batchNumber);
+    setEditItems((current) => current.map((item) => item.id === id ? {
+      ...item,
+      batch: batchNumber || '',
+      expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 10) : item.expiryDate,
+      mrp: batch?.mrp !== undefined ? Number(batch.mrp) : item.mrp,
+      sellingPrice: batch?.sellingPrice !== undefined ? Number(batch.sellingPrice) : item.sellingPrice,
+    } : item));
+  };
+
+  // Lazily creates one debounced searcher per row so simultaneous edits don't cancel each other.
+  const getEditDebouncedMedicineSearch = (id: number) => {
+    if (!editDebouncedSearchers.current.has(id)) {
+      editDebouncedSearchers.current.set(
+        id,
+        debounce(async (name: string) => {
+          if (!name.trim()) {
+            setEditMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+            setEditMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+            return;
+          }
+          setEditMedicineSearchLoading((prev) => ({ ...prev, [id]: true }));
+          try {
+            const response = await getMedicineByName(name);
+            setEditMedicineSuggestions((prev) => ({ ...prev, [id]: response.data || [] }));
+          } catch {
+            setEditMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+          } finally {
+            setEditMedicineSearchLoading((prev) => ({ ...prev, [id]: false }));
+          }
+        }, 400)
+      );
+    }
+    return editDebouncedSearchers.current.get(id)!;
+  };
+
+  const handleEditMedicineNameSearch = (id: number, value: string) => {
+    updateEditItem(id, 'medicineName', value);
+    getEditDebouncedMedicineSearch(id)(value);
+  };
+
+  // Fired when the user explicitly picks a medicine from the suggestion dropdown.
+  const handleEditMedicineSelect = (id: number, medicineId: number | null, name: string) => {
+    updateEditItem(id, 'medicineName', name);
+    setEditItems((current) => current.map((item) => (item.id === id ? { ...item, medicineId } : item)));
+    setEditMedicineSuggestions((prev) => ({ ...prev, [id]: [] }));
+    loadBatchesForEditItem(id, name);
   };
 
   // Mirrors the calculation used when an invoice is first created (billing.tsx) so recalculated
@@ -398,6 +511,12 @@ export default function Invoices() {
       });
       setEditInvoice(null);
       setRefreshKey((key) => key + 1);
+      notifications.show({
+        title: 'Invoice updated',
+        message: 'Invoice details have been successfully updated.',
+        color: 'teal',
+        icon: <IconCircleCheck size={18} />,
+      });
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'Failed to update invoice.');
     } finally {
@@ -848,19 +967,58 @@ export default function Invoices() {
                   {editItems.map((item) => (
                     <Table.Tr key={item.id}>
                       <Table.Td>
-                        <TextInput
+                        <Autocomplete
                           size="xs"
                           placeholder="Medicine name"
                           value={item.medicineName}
-                          onChange={(event) => updateEditItem(item.id, 'medicineName', event.currentTarget.value)}
+                          data={(editMedicineSuggestions[item.id] || []).map((med) => ({
+                            value: `${med.name}__${med.id}`,
+                            label: med.name,
+                          }))}
+                          onChange={(value) => {
+                            const cleanName = value.includes('__') ? value.split('__')[0] : value;
+                            handleEditMedicineNameSearch(item.id, cleanName);
+                          }}
+                          onOptionSubmit={(selectedValue) => {
+                            const [selectedName, selectedId] = selectedValue.split('__');
+                            handleEditMedicineSelect(item.id, Number(selectedId), selectedName);
+                          }}
+                          rightSection={editMedicineSearchLoading[item.id] ? <Loader size="xs" /> : null}
+                          comboboxProps={{ withinPortal: true, width: 300, position: 'bottom-start', offset: 2 }}
+                          ref={(input) => { medicineNameRefs.current[item.id] = input; }}
+                          renderOption={({ option }) => {
+                            const [name, medId] = option.value.split('__');
+                            const med = (editMedicineSuggestions[item.id] || []).find(
+                              (m) => String(m.id) === String(medId)
+                            );
+                            return (
+                              <Stack gap={0}>
+                                <Text size="sm" fw={600}>
+                                  {med?.name ?? name}
+                                </Text>
+                                {med && (
+                                  <Text size="xs" c="dimmed">
+                                    {[med.manufacturer_name, med.type, med.pack_size_label]
+                                      .filter(Boolean)
+                                      .join(' • ')}
+                                  </Text>
+                                )}
+                              </Stack>
+                            );
+                          }}
                         />
                       </Table.Td>
                       <Table.Td>
-                        <TextInput
+                        <Autocomplete
                           size="xs"
-                          placeholder="Batch"
+                          placeholder="Select or enter batch"
+                          data={(editBatchOptions[item.id] || []).map((batch) => batch.batchNumber)}
                           value={item.batch}
-                          onChange={(event) => updateEditItem(item.id, 'batch', event.currentTarget.value)}
+                          filter={({ options }) => options}
+                          onChange={(value) => updateEditItem(item.id, 'batch', value)}
+                          onOptionSubmit={(value) => handleEditBatchSelect(item.id, value)}
+                          rightSection={editBatchLoading[item.id] ? <Loader size="xs" /> : null}
+                          comboboxProps={{ withinPortal: true }}
                         />
                       </Table.Td>
                       <Table.Td>
