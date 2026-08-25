@@ -381,7 +381,7 @@ export default function Billing() {
         flatDiscount: flatDiscountAmount,
         finalPayable: totals.payable,
         items: totals.calculated.map((item) => ({
-          medicineId:medicineSuggestions[item.id]?.find((med) => med.name === item.medicineName)?.id || null,
+          medicineId: medicineSuggestions[item.id]?.find((med) => med.name === item.medicineName)?.id || null,
           medicineName: item.medicineName.trim(),
           batch: item.batchNumber.trim(),
           expiryDate: `${item.expiryDate}-01`,
@@ -552,7 +552,7 @@ export default function Billing() {
                     <Table.Td><NumberInput size="xs" min={1} value={item.quantity} onChange={(value) => updateItem(item.id, 'quantity', Number(value) || 0)} error={submitAttempted && item.quantity <= 0} hideControls /></Table.Td>
                     <Table.Td><Select size="xs" data={['Strip', 'Bottle', 'Box', 'Tube', 'Unit']} value={item.packUnit} onChange={(value) => updateItem(item.id, 'packUnit', value || 'Unit')} /></Table.Td>
                     <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.mrp} onChange={(value) => updateItem(item.id, 'mrp', Number(value) || 0)} hideControls /></Table.Td>
-                    <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.sellingPrice} onChange={(value) => updateItem(item.id, 'sellingPrice', Number(value) || 0)} error={submitAttempted && (!Number.isFinite(item.sellingPrice) || item.sellingPrice <= 0)} hideControls /></Table.Td>
+                    <Table.Td><NumberInput size="xs" min={0} decimalScale={2} value={item.sellingPrice} onChange={(value) => updateItem(item.id, 'sellingPrice', Number(value) || 0)} error={submitAttempted && (item.sellingPrice > item.mrp || item.sellingPrice <= 0)} hideControls /></Table.Td>
                     <Table.Td><TextInput size="xs" disabled fw={700} value={money(item.discountAmount)} styles={disabledFieldStyles} /></Table.Td>
                     <Table.Td><TextInput size="xs" disabled fw={700} value={`${item.gstRate}% · ${money(item.gst)}`} styles={disabledFieldStyles} /></Table.Td>
                     <Table.Td><Select size="xs" placeholder="Select HSN" searchable data={HSN_OPTIONS} value={item.hsnCode} onChange={(value) => updateItem(item.id, 'hsnCode', value || '')} error={submitAttempted && !item.hsnCode.trim()} /></Table.Td>

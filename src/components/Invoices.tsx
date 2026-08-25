@@ -1072,7 +1072,7 @@ export default function Invoices() {
                           size="xs"
                           min={0}
                           decimalScale={2}
-                          error={submitAttempted && (!Number.isFinite(item.sellingPrice) || item.sellingPrice <= 0)}
+                          error={submitAttempted && (item.sellingPrice > item.mrp || item.sellingPrice <= 0)}
                           value={item.sellingPrice}
                           onChange={(value) => updateEditItem(item.id, 'sellingPrice', Number(value) || 0)}
                           hideControls
