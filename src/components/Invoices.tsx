@@ -67,7 +67,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 const HSN_OPTIONS = [
   { value: '30049099', label: '30049099 - Medicaments (GST 12%)' },
   { value: '30039011', label: '30039011 - Ayurvedic medicaments (GST 5%)' },
-
+  { value: '30039099', label: '30039099 - Other medicaments (GST 5%)' },
   { value: '90189099', label: '90189099 - Medical instruments (GST 12%)' },
   { value: '33049900', label: '33049900 - Cosmetic / skin care (GST 18%)' },
   { value: '30051090', label: '30051090 - Adhesive dressings & bandages (GST 12%)' },
