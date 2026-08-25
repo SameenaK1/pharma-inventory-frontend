@@ -142,7 +142,7 @@ export default function Invoices() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const totalPages = Math.ceil(totalRecords / pageSize);
-
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   // View modal state
   const [viewInvoice, setViewInvoice] = useState<BillingInvoiceListItem | null>(null);
   const [viewDetail, setViewDetail] = useState<BillingInvoiceDetail | null>(null);
@@ -255,7 +255,7 @@ export default function Invoices() {
           medicineId: item.medicine_id,
           medicineName: item.medicine_name,
           batch: item.batch,
-          expiryDate: String(item.expiry_date).slice(0, 10),
+          expiryDate: String(item.expiry_date).slice(0, 7),
           hsnCode: item.hsn_code ?? '',
           qty: item.qty,
           pack: item.pack,
@@ -344,7 +344,7 @@ export default function Invoices() {
     setEditItems((current) => current.map((item) => item.id === id ? {
       ...item,
       batch: batchNumber || '',
-      expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 10) : item.expiryDate,
+      expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 7) : item.expiryDate,
       mrp: batch?.mrp !== undefined ? Number(batch.mrp) : item.mrp,
       sellingPrice: batch?.sellingPrice !== undefined ? Number(batch.sellingPrice) : item.sellingPrice,
     } : item));
@@ -427,6 +427,15 @@ export default function Invoices() {
   }, [editItems, editForm.flatDiscount]);
 
   const handleSaveEdit = async () => {
+    setSubmitAttempted(true);
+    const setEditError = (message: string) => {
+      notifications.show({
+        title: 'Unable to save invoice',
+        message,
+        color: 'red',
+        icon: <IconAlertCircle size={18} />,
+      });
+    };
     if (!editInvoice) return;
 
     const phoneError = getPhoneError(editForm.phoneNumber ?? '');
@@ -469,8 +478,7 @@ export default function Invoices() {
     }
 
     setEditSaving(true);
-    setEditError(null);
-     
+
     try {
       await updateBillingInvoice(editInvoice.invoice_number, {
         doctorName: editForm.doctorName.trim() || undefined,
@@ -492,7 +500,7 @@ export default function Invoices() {
           medicineId: item.medicineId,
           medicineName: item.medicineName.trim(),
           batch: item.batch.trim(),
-          expiryDate: item.expiryDate,
+          expiryDate: `${item.expiryDate}-01`,
           qty: item.qty,
           pack: item.pack,
           mrp: item.mrp,
@@ -966,6 +974,7 @@ export default function Invoices() {
                         <Autocomplete
                           size="xs"
                           placeholder="Medicine name"
+                          error={submitAttempted && !item.medicineName.trim()}
                           value={item.medicineName}
                           data={(editMedicineSuggestions[item.id] || []).map((med) => ({
                             value: `${med.name}__${med.id}`,
@@ -1008,6 +1017,7 @@ export default function Invoices() {
                         <Autocomplete
                           size="xs"
                           placeholder="Select or enter batch"
+                          error={submitAttempted && !item.batch.trim()}
                           data={(editBatchOptions[item.id] || []).map((batch) => batch.batchNumber)}
                           value={item.batch}
                           filter={({ options }) => options}
@@ -1018,12 +1028,7 @@ export default function Invoices() {
                         />
                       </Table.Td>
                       <Table.Td>
-                        <TextInput
-                          size="xs"
-                          type="date"
-                          value={item.expiryDate}
-                          onChange={(event) => updateEditItem(item.id, 'expiryDate', event.currentTarget.value)}
-                        />
+                        <Table.Td><TextInput size="xs" type="month" value={item.expiryDate} onChange={(event) => updateEditItem(item.id, 'expiryDate', event.currentTarget.value)} error={!!getExpiryError(item.expiryDate) || (submitAttempted && !item.expiryDate)} styles={{ input: { paddingInline: 6 } }} /></Table.Td>
                       </Table.Td>
                       <Table.Td>
                         <Select
@@ -1032,6 +1037,7 @@ export default function Invoices() {
                           searchable
                           data={HSN_OPTIONS}
                           value={item.hsnCode}
+                          error={submitAttempted && !item.hsnCode.trim()}
                           onChange={(value) => updateEditItem(item.id, 'hsnCode', value ?? '')}
                         />
                       </Table.Td>
@@ -1066,6 +1072,7 @@ export default function Invoices() {
                           size="xs"
                           min={0}
                           decimalScale={2}
+                          error={submitAttempted && (!Number.isFinite(item.sellingPrice) || item.sellingPrice <= 0)}
                           value={item.sellingPrice}
                           onChange={(value) => updateEditItem(item.id, 'sellingPrice', Number(value) || 0)}
                           hideControls
