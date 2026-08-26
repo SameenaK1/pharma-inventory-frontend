@@ -74,7 +74,7 @@ export default function InventoryModalForm({
   // --- API FETCHING STATES ---
   const [suggestions, setSuggestions] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const [, setSelectedMedicine] = useState<Medicine | null>(null);
   const [confirmedManufacturer, setConfirmedManufacturer] = useState<string>('');
   const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
