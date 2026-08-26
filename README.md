@@ -1,75 +1,95 @@
-# React + TypeScript + Vite
+# Pharma Inventory Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for the Pharma Inventory application — a pharmacy management dashboard built with **React 19 + TypeScript + Vite** and **Mantine UI**. It covers inventory management, medicine management, manufacturing data, billing, and invoice management, backed by the `pharma-inventory-backend` REST API.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** with **TypeScript** and **Vite** (HMR)
+- **Mantine UI** (`@mantine/core`, `@mantine/dates`, `@mantine/form`, `@mantine/hooks`, `@mantine/notifications`) for components, forms, and notifications
+- **React Router** for navigation
+- **@tabler/icons-react** + **lucide-react** for icons
+- **@react-oauth/google** for Google sign-in
+- **html2canvas** + **jspdf** for generating/downloading invoice PDFs
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the ESLint configuration
+# Start the dev server
+npm run dev
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Lint
+npm run lint
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Type-check + production build
+npm run build
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+# Preview the production build
+npm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app expects the backend API at the URL set via the `VITE_API_URL` environment variable (see `src/services/apiClient.ts`). The dev server is available at `http://localhost:5173/` by default.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Features
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Authentication** — login / sign-up with Google OAuth (see `src/services/authcontext.tsx`, `src/components/login.tsx`, `src/services/ProtectedRoute.tsx`)
+- **Dashboard** — overview metrics and insights (`src/components/dashboard.tsx`)
+- **Inventory** — stock management, add inventory entries (`src/components/inventory.tsx`, `src/components/addinventory.tsx`)
+- **Medicines** — medicine catalogue management (`src/components/addmedicine.tsx`)
+- **Manufacturers** — manufacturer data management
+- **Billing** — create invoices with line items, discounts, GST breakdown (`src/components/billing.tsx`)
+- **Invoices** — list, view, edit, and **print / download as PDF** (`src/components/Invoices.tsx`)
+
+## Invoice Printing & PDF Download
+
+Invoices can be printed or saved as a PDF directly from the **Invoices** page:
+
+1. Click the **Print** action on any invoice row. This opens a print-preview modal (it fetches the full invoice detail via `GET /billing/invoice/:invoiceNumber`).
+2. Use the **Print** button to open the rendered invoice in a new window and trigger the browser's print dialog (`window.open` + `window.print`).
+3. Use the **Download PDF** button to rasterise the invoice with `html2canvas` and save it as a multi-page A4 PDF with `jspdf` (filename = invoice number).
+
+### Printable layout — `src/components/InvoicePrint.tsx`
+
+- A self-contained A4 **tax invoice** component rendered with `forwardRef` pointing at the A4 sheet.
+- All styling is scoped in a `<style>` block using plain CSS (no framework classes), so the same node can be printed in a new window or rasterised to a PDF without losing its look. It is **794px** wide on screen and switches to **210mm** under `@media print`.
+- Shows pharmacy letterhead, invoice meta, billing/doctor details, an itemised medicines table (batch, expiry, pack, MRP, rate, discount, GST, taxable, amount), tax breakup, totals (gross, item discount, flat discount, subtotal, final payable), and the amount in words (Indian numbering system).
+
+> **To update the pharmacy letterhead** (name, tagline, address, phone, email, GSTIN, DL number) edit the `PHARMACY` constant at the top of `src/components/InvoicePrint.tsx`. There is no backend pharmacy config yet.
+
+## Project Structure
 
 ```
+src/
+├── main.tsx              # App entry
+├── App.tsx               # Route definitions
+├── components/           # UI screens & shared components
+│   ├── dashboard.tsx
+│   ├── inventory.tsx
+│   ├── billing.tsx
+│   ├── Invoices.tsx      # Invoice list + print/PDF preview modal
+│   ├── InvoicePrint.tsx  # Printable A4 tax-invoice layout
+│   ├── addinventory.tsx
+│   ├── addmedicine.tsx
+│   ├── login.tsx
+│   ├── header.tsx
+│   ├── sidebar.tsx
+│   └── ...
+├── services/             # API clients & types
+│   ├── apiClient.ts
+│   ├── authcontext.tsx
+│   ├── billing.ts
+│   ├── inventory.ts
+│   ├── medicine.ts
+│   ├── manufacturer.ts
+│   ├── user.ts
+│   └── ...
+└── utils/
+    └── debounce.ts
+```
+
+## Dependencies Added for Invoicing
+
+- `html2canvas` — rasterises the on-screen invoice into a canvas image
+- `jspdf` — packs the canvas into a downloadable multi-page A4 PDF
