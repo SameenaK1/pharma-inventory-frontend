@@ -29,16 +29,21 @@ import {
 import {
   IconAlertCircle,
   IconCircleCheck,
+  IconDownload,
   IconEye,
   IconInbox,
   IconListDetails,
   IconPencil,
   IconPlus,
+  IconPrinter,
   IconReceipt,
   IconRefresh,
   IconSearch,
   IconTrash,
 } from '@tabler/icons-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import InvoicePrint from './InvoicePrint';
 import {
   getBillingInvoice,
   listBillingInvoices,
@@ -164,6 +169,14 @@ export default function Invoices() {
   const [editBatchLoading, setEditBatchLoading] = useState<Record<number, boolean>>({});
   const medicineNameRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
+  // Print / PDF preview state
+  const [printInvoice, setPrintInvoice] = useState<BillingInvoiceListItem | null>(null);
+  const [printDetail, setPrintDetail] = useState<BillingInvoiceDetail | null>(null);
+  const [printLoading, setPrintLoading] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
   // Reset to the first page whenever search or page size changes.
   useEffect(() => {
     setActivePage(1);
@@ -268,6 +281,87 @@ export default function Invoices() {
       setEditError(err instanceof Error ? err.message : 'Failed to load invoice items.');
     } finally {
       setEditItemsLoading(false);
+    }
+  };
+
+  const openPrint = async (row: BillingInvoiceListItem) => {
+    setPrintInvoice(row);
+    setPrintDetail(null);
+    setPrintError(null);
+    setPrintLoading(true);
+    try {
+      const response = await getBillingInvoice(row.invoice_number);
+      setPrintDetail(response.data ?? null);
+      if (!response.data) setPrintError('No details found for this invoice.');
+    } catch (err) {
+      setPrintError(err instanceof Error ? err.message : 'Failed to load invoice details.');
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
+  // Prints only the invoice (not the whole app) by writing the rendered sheet
+  // into a fresh window and invoking the browser's print dialog there.
+  const handlePrintInvoice = () => {
+    const node = printRef.current;
+    if (!node || !printDetail) return;
+    const printWindow = window.open('', '_blank', 'width=850,height=1100');
+    if (!printWindow) {
+      notifications.show({
+        title: 'Popup blocked',
+        message: 'Please allow pop-ups so the invoice can be printed.',
+        color: 'red',
+        icon: <IconAlertCircle size={18} />,
+      });
+      return;
+    }
+    printWindow.document.write(
+      `<!doctype html><html><head><meta charset="utf-8" /><title>${printDetail.invoice.invoice_number}</title><style>@page { size: A4; margin: 0; } body { margin: 0; background: #ffffff; }</style></head><body>${node.outerHTML}<script>window.onload = function () { window.print(); };</script></body></html>`
+    );
+    printWindow.document.close();
+  };
+
+  const handleDownloadPdf = async () => {
+    const node = printRef.current;
+    if (!node || !printDetail) return;
+    setPdfLoading(true);
+    try {
+      const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`${printDetail.invoice.invoice_number}.pdf`);
+      notifications.show({
+        title: 'PDF downloaded',
+        message: 'The invoice PDF has been generated and saved.',
+        color: 'teal',
+        icon: <IconCircleCheck size={18} />,
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Unable to download PDF',
+        message: err instanceof Error ? err.message : 'PDF generation failed. Please try again.',
+        color: 'red',
+        icon: <IconAlertCircle size={18} />,
+      });
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -671,6 +765,15 @@ export default function Invoices() {
                           title="Modify invoice"
                         >
                           <IconPencil style={{ width: 16, height: 16 }} />
+                        </ActionIcon>
+                        <ActionIcon
+                          variant="subtle"
+                          color="violet"
+                          size="sm"
+                          onClick={() => openPrint(row)}
+                          title="Print / download invoice"
+                        >
+                          <IconPrinter style={{ width: 16, height: 16 }} />
                         </ActionIcon>
                       </Group>
                     </Table.Td>
@@ -1130,6 +1233,68 @@ export default function Invoices() {
           </Button>
           <Button color="blue" onClick={handleSaveEdit} loading={editSaving} disabled={editSaving || editItemsLoading}>
             Save changes
+          </Button>
+        </Group>
+      </Modal>
+
+      {/* ------------------------------ Print / PDF preview modal ------------------------------ */}
+      <Modal
+        opened={!!printInvoice}
+        onClose={() => setPrintInvoice(null)}
+        title={
+          <Group gap="xs">
+            <IconPrinter size={18} />
+            <Text fw={700}>Print preview · {printInvoice?.invoice_number}</Text>
+          </Group>
+        }
+        size={980}
+        centered
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      >
+        {printLoading && (
+          <Stack gap="xs">
+            <Skeleton height={16} radius="sm" />
+            <Skeleton height={16} radius="sm" />
+            <Skeleton height={16} radius="sm" />
+          </Stack>
+        )}
+
+        {printError && !printLoading && (
+          <Alert icon={<IconAlertCircle size={18} />} color="red" variant="light" radius="md">
+            {printError}
+          </Alert>
+        )}
+
+        {!printLoading && !printError && printDetail && (
+          <ScrollArea h={600} offsetScrollbars scrollbarSize={8}>
+            <div style={{ background: '#e2e8f0', padding: 16, borderRadius: 8 }}>
+              <div style={{ boxShadow: '0 8px 30px rgba(15, 23, 42, 0.18)' }}>
+                <InvoicePrint ref={printRef} invoice={printDetail.invoice} items={printDetail.items} />
+              </div>
+            </div>
+          </ScrollArea>
+        )}
+
+        <Group justify="flex-end" gap="sm" mt="lg">
+          <Button variant="light" color="gray" onClick={() => setPrintInvoice(null)}>
+            Close
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+            onClick={handleDownloadPdf}
+            loading={pdfLoading}
+            disabled={pdfLoading || !printDetail || printLoading}
+          >
+            Download PDF
+          </Button>
+          <Button
+            color="blue"
+            leftSection={<IconPrinter size={16} />}
+            onClick={handlePrintInvoice}
+            disabled={!printDetail || printLoading}
+          >
+            Print
           </Button>
         </Group>
       </Modal>
