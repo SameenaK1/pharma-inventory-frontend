@@ -125,14 +125,14 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          border-bottom: 3px solid #0f766e;
+          border-bottom: 3px solid #1c7ed6;
           padding-bottom: 16px;
         }
-        .inv-brand-name { font-size: 26px; font-weight: 800; color: #134e4a; letter-spacing: 0.2px; margin: 0; }
-        .inv-brand-tagline { font-size: 12px; color: #0f766e; font-weight: 600; margin: 2px 0 10px; }
+        .inv-brand-name { font-size: 26px; font-weight: 800; color: #1971c2; letter-spacing: 0.2px; margin: 0; }
+        .inv-brand-tagline { font-size: 12px; color: #1c7ed6; font-weight: 600; margin: 2px 0 10px; }
         .inv-brand-detail { font-size: 11px; color: #4b5563; margin: 2px 0; }
         .inv-doc-block { text-align: right; }
-        .inv-doc-title { font-size: 22px; font-weight: 800; color: #0f766e; letter-spacing: 1px; margin: 0 0 10px; }
+        .inv-doc-title { font-size: 22px; font-weight: 800; color: #1c7ed6; letter-spacing: 1px; margin: 0 0 10px; }
         .inv-meta-row { display: flex; justify-content: flex-end; gap: 6px; font-size: 12px; margin: 3px 0; }
         .inv-meta-label { color: #6b7280; }
         .inv-meta-value { font-weight: 700; color: #111827; }
@@ -140,7 +140,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         .inv-section { margin-top: 18px; }
         .inv-section-title {
           font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
-          color: #0f766e; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px;
+          color: #1c7ed6; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px;
         }
         .inv-parties { display: flex; justify-content: space-between; gap: 24px; }
         .inv-party { flex: 1; font-size: 12px; color: #374151; }
@@ -150,7 +150,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
 
         .inv-table { width: 100%; border-collapse: collapse; font-size: 11px; }
         .inv-table th {
-          background: #f0fdfa; color: #134e4a; font-weight: 700; text-transform: uppercase;
+          background: #e7f5ff; color: #1971c2; font-weight: 700; text-transform: uppercase;
           font-size: 10px; letter-spacing: 0.4px; border: 1px solid #d1d5db; padding: 6px 6px;
           text-align: right;
         }
@@ -158,7 +158,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         .inv-table td { border: 1px solid #e5e7eb; padding: 6px; text-align: right; vertical-align: top; }
         .inv-table tbody tr:nth-child(even) td { background: #fafafa; }
         .inv-med-name { font-weight: 700; color: #111827; }
-        .inv-med-sub { font-size: 10px; color: #6b7280; margin-top: 2px; }
+        .inv-med-sub { font-size: 10px; color: #339af0; margin-top: 2px; }
 
         .inv-lower { display: flex; gap: 20px; margin-top: 18px; }
         .inv-gst-box { flex: 1.4; }
@@ -167,7 +167,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         .inv-totals-table td { padding: 6px 8px; border: 1px solid #e5e7eb; }
         .inv-totals-table .lbl { color: #4b5563; font-weight: 600; }
         .inv-totals-table .amt { text-align: right; font-weight: 600; color: #111827; }
-        .inv-grand { background: #0f4d76; color: #040607 !important; font-weight: 800; }
+        .inv-grand { background: #1c7ed6; color: #040607 !important; font-weight: 800; }
         .inv-grand .lbl, .inv-grand .amt { color: #f5fcff !important; }
 
         .inv-words {
@@ -183,7 +183,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         .inv-terms { font-size: 9.5px; color: #6b7280; max-width: 62%; }
         .inv-sign { text-align: center; font-size: 11px; color: #4b5563; }
         .inv-sign-line { width: 180px; border-top: 1px solid #9ca3af; margin: 38px auto 6px; }
-        .inv-thanks { text-align: center; font-size: 12px; font-weight: 700; color: #0f766e; margin-top: 14px; }
+        .inv-thanks { text-align: center; font-size: 12px; font-weight: 700; color: #1c7ed6; margin-top: 14px; }
 
         @media print {
           body { margin: 0; }
@@ -243,7 +243,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         <table className="inv-table">
           <thead>
             <tr>
-              <th className="inv-left" style={{ width: 20 }}>#</th>
+              <th className="inv-left" style={{ width: 20 }}>No.</th>
               <th className="inv-left">Medicine</th>
               <th>Batch</th>
               <th>Expiry</th>

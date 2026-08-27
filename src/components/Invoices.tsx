@@ -497,7 +497,7 @@ export default function Invoices() {
     });
     const taxable = calculated.reduce((sum, item) => sum + item.taxable, 0);
     const gst = calculated.reduce((sum, item) => sum + item.gst, 0);
-    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0) + flatDiscountAmount;
+    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0);
     const beforeRound = taxable + gst - flatDiscountAmount;
     const gstBreakdown = GST_SLABS.map((rate) => {
       const rows = calculated.filter((item) => item.gstRate === rate);
@@ -929,30 +929,59 @@ export default function Invoices() {
 
             <Divider />
 
-            <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="lg" verticalSpacing="md">
               <div>
-                <Text size="xs" c="dimmed">Total quantity</Text>
-                <Text fw={600}>{invoice.total_quantity}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Total quantity
+                </Text>
+                <Text size="sm" fw={600} mt={2}>
+                  {invoice.total_quantity ?? 0}
+                </Text>
               </div>
+
               <div>
-                <Text size="xs" c="dimmed">Gross amount</Text>
-                <Text fw={600}>{money(invoice.gross_amount)}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Gross amount
+                </Text>
+                <Text size="sm" fw={600} mt={2}>
+                  {money(invoice.gross_amount)}
+                </Text>
               </div>
+
               <div>
-                <Text size="xs" c="dimmed">Discount</Text>
-                <Text fw={600} c="red">-{money(invoice.discount_amount)}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Item Discount
+                </Text>
+                <Text size="sm" fw={600} c="red.6" mt={2}>
+                  -{money(invoice.discount_amount)}
+                </Text>
               </div>
+
               <div>
-                <Text size="xs" c="dimmed">Flat discount</Text>
-                <Text fw={600}>-{money(invoice.flat_discount)}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Flat discount
+                </Text>
+                <Text size="sm" fw={600} c="red.6" mt={2}>
+                  -{money(invoice.flat_discount)}
+                </Text>
               </div>
+
               <div>
-                <Text size="xs" c="dimmed">Subtotal</Text>
-                <Text fw={600}>{money(invoice.subtotal)}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Total Discount
+                </Text>
+                <Text size="sm" fw={600} c="red.7" mt={2}>
+                  -{money((Number(invoice.discount_amount) || 0) + (Number(invoice.flat_discount) || 0))}
+                </Text>
               </div>
+
               <div>
-                <Text size="xs" c="dimmed">Final payable</Text>
-                <Text fw={700} c="blue">{money(invoice.final_payable)}</Text>
+                <Text size="xs" c="dimmed" fw={500} tt="uppercase" lts={0.5}>
+                  Final payable
+                </Text>
+                <Text size="md" fw={700} c="blue.7" mt={2}>
+                  {money(invoice.final_payable)}
+                </Text>
               </div>
             </SimpleGrid>
           </Stack>
@@ -1202,27 +1231,57 @@ export default function Invoices() {
 
           <Divider />
 
-          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+          <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="md" verticalSpacing="sm" >
+            <div>
+              <Text size="xs" c="dimmed">Total quantity</Text>
+              <Text fw={600} size="sm" lh="xs" style={{ minHeight: 36, display: 'flex', alignItems: 'center' }}>
+                {editTotals.totalQuantity}
+              </Text>
+            </div>
+
+            <div>
+              <Text size="xs" c="dimmed">Gross Amount</Text>
+              <Text fw={600} size="sm" lh="xs" style={{ minHeight: 36, display: 'flex', alignItems: 'center' }}>
+                {money(editTotals.grossAmount)}
+              </Text>
+            </div>
+
+            <div>
+              <Text size="xs" c="dimmed">Item Discount</Text>
+              <Text fw={600} size="sm" lh="xs" style={{ minHeight: 36, display: 'flex', alignItems: 'center' }}>
+                {money(editTotals.discount ?? 0)}
+              </Text>
+            </div>
+
+            {/* Compact & Seamless Input Variant */}
             <NumberInput
               label="Flat discount"
               prefix="₹"
               min={0}
               decimalScale={2}
-              value={editForm.flatDiscount ?? '0'}
+              size="xs"
+              variant="filled"
+              value={editForm.flatDiscount ?? 0}
               onChange={(value) => setField('flatDiscount', String(value ?? 0))}
               hideControls
+              styles={{
+                label: { fontWeight: 400, color: 'var(--mantine-color-dimmed)' },
+                input: { fontWeight: 600, fontSize: 'var(--mantine-font-size-sm)' },
+              }}
             />
+
             <div>
-              <Text size="xs" c="dimmed">Total quantity</Text>
-              <Text fw={600}>{editTotals.totalQuantity}</Text>
+              <Text size="xs" c="dimmed">Total Discount</Text>
+              <Text fw={600} size="sm" lh="xs" style={{ minHeight: 36, display: 'flex', alignItems: 'center' }}>
+                {money((Number(editTotals.discount) || 0) + (Number(editForm.flatDiscount) || 0))}
+              </Text>
             </div>
-            <div>
-              <Text size="xs" c="dimmed">Subtotal</Text>
-              <Text fw={600}>{money(editTotals.beforeRound)}</Text>
-            </div>
+
             <div>
               <Text size="xs" c="dimmed">Final payable</Text>
-              <Text fw={700} c="blue">{money(editTotals.payable)}</Text>
+              <Text fw={700} size="sm" lh="xs" c="blue" style={{ minHeight: 36, display: 'flex', alignItems: 'center' }}>
+                {money(editTotals.payable)}
+              </Text>
             </div>
           </SimpleGrid>
         </Stack>
