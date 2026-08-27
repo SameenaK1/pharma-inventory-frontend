@@ -136,7 +136,7 @@ export default function Billing() {
     });
     const taxable = calculated.reduce((sum, item) => sum + item.taxable, 0);
     const gst = calculated.reduce((sum, item) => sum + item.gst, 0);
-    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0) + Number(flatDiscount || 0);
+    const discount = calculated.reduce((sum, item) => sum + item.discountAmount, 0);
     const beforeRound = taxable + gst - Number(flatDiscount || 0);
     const gstBreakdown = GST_SLABS.map((rate) => {
       const rows = calculated.filter((item) => item.gstRate === rate);
@@ -347,6 +347,7 @@ export default function Billing() {
     const flatDiscountAmount = Number(flatDiscount || 0);
     if (!Number.isFinite(flatDiscountAmount) || flatDiscountAmount < 0) {
       showValidationError('Flat discount cannot be negative.');
+      
       return;
     }
     if (!Number.isFinite(totals.beforeRound) || totals.beforeRound < 0) {
@@ -363,6 +364,7 @@ export default function Billing() {
     }
 
     setSaveLoading(true);
+
     try {
       const response = await createBillingInvoice({
         doctorName: doctorName.trim() || undefined,
