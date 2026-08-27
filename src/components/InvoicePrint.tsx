@@ -243,7 +243,7 @@ const InvoicePrint = forwardRef<HTMLDivElement, InvoicePrintProps>(function Invo
         <table className="inv-table">
           <thead>
             <tr>
-              <th className="inv-left" style={{ width: 20 }}>#</th>
+              <th className="inv-left" style={{ width: 20 }}>Sr. No.</th>
               <th className="inv-left">Medicine</th>
               <th>Batch</th>
               <th>Expiry</th>
