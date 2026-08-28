@@ -7,7 +7,6 @@ export interface InventoryItem {
   type: string;
   packsizelabel: string;
   composition1: string;
-  composition2: string;
   mrp: number;
   batchnumber: string;
   shelfrackinfo: string;
@@ -48,7 +47,6 @@ export interface InventoryListParams {
   batch_number?: string;
   type?: string;
   composition1?: string;
-  composition2?: string;
   sortBy?: string;
   page?: number;
   limit?: number;

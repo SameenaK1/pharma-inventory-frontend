@@ -39,7 +39,6 @@ export default function AddInventory() {
   const [loading, setLoading] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
   const [composition1, setComposition1] = useState('');
-  const [composition2, setComposition2] = useState('');
   const [manufacturer, setManufacturer] = useState('')
   const [manufacturerSuggestions, setManufacturerSuggestions] = useState<Manufacturer[]>([]);
   const [manufacturerLoading, setManufacturerLoading] = useState(false);
@@ -89,7 +88,6 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
         type: medicineType || 'Allopathy',
         packsizelabel: packsize?.toString() || '',
         composition1,
-        composition2,
         mrp: Number(mrp) || 0,
         batchnumber: '',
         shelfrackinfo: '',
@@ -186,8 +184,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
 
   // Handle medicine selection from autocomplete
   const handleMedicineSelect = (medicine: Medicine) => {
-    setComposition1(medicine.composition1 || '');
-    setComposition2(medicine.composition2 || '');
+    setComposition1(medicine.short_composition || '');
     setManufacturer(medicine.manufacturer_name || '');
     setPackSize(medicine.pack_size_label || '');
     if (medicine.type) setMedicineType(medicine.type);
@@ -218,7 +215,6 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
     setSelectedMedicine(null);
     setMedicineName('');
     setComposition1('');
-    setComposition2('');
     setManufacturer('');
     setQuantity(1);
     setAlertThreshold(6);
@@ -286,7 +282,7 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
                     }
                   }}
                   data={suggestions.map((med) => ({
-                    value: `${med.name}||id:${med.id}`,
+                    value: `${med.name}||id:${med.sku_id}`,
                     label: med.name
                   }))}
                   rightSection={loading ? <Loader size="sm" /> : null}
@@ -356,13 +352,6 @@ const isFormValid = isMedicineNameValid && isQuantityValid;
                 placeholder="e.g., Paracetamol 500mg"
                 value={composition1}
                 onChange={(event) => setComposition1(event.currentTarget.value)}
-                styles={inputStyles}
-              />
-              <TextInput
-                label="Composition 2"
-                placeholder="e.g., Croscarmellose Sodium"
-                value={composition2}
-                onChange={(event) => setComposition2(event.currentTarget.value)}
                 styles={inputStyles}
               />
 

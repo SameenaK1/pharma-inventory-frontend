@@ -56,7 +56,6 @@ export default function InventoryModalForm({
   const [alertthreshold, setAlertThreshold] = useState<number | string>(6);
   const [medicineName, setMedicineName] = useState('');
   const [composition1, setComposition1] = useState('');
-  const [composition2, setComposition2] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [packsize, setPackSize] = useState<number | string>('');
   const [batchNumber, setBatchNumber] = useState('');
@@ -167,8 +166,7 @@ export default function InventoryModalForm({
 
   const handleMedicineSelect = (medicine: Medicine) => {
     setSelectedMedicine(medicine);
-    setComposition1(medicine.composition1 || '');
-    setComposition2(medicine.composition2 || '');
+    setComposition1(medicine.short_composition || '');
     setPackSize(medicine.pack_size_label || '');
     if (medicine.type) setMedicineType(medicine.type);
     setMedicineType(medicine.type || 'Allopathy'); // Default to 'Allopathy' if type is missing
@@ -207,7 +205,6 @@ export default function InventoryModalForm({
         setMedicineType(initialData.type || 'Allopathy');
         setPackSize(initialData.pack_size_label || '');
         setComposition1(initialData.composition1 || '');
-        setComposition2(initialData.composition2 || '');
         setMrp(initialData.mrp || 0);
         setBatchNumber(initialData.batch_number || '');
         setshelfrackinfo(initialData.shelf_rack_info || '');
@@ -284,8 +281,7 @@ export default function InventoryModalForm({
         manufacturername: manufacturer,
         type: medicineType || 'Allopathy',
         packsizelabel: packsize?.toString() || '',
-        composition1,
-        composition2,
+        composition1: composition1 || '',
         mrp: Number(mrp) || 0,
         batchnumber: batchNumber,
         shelfrackinfo: shelfrackinfo,
@@ -324,7 +320,6 @@ export default function InventoryModalForm({
   const resetFormFields = () => {
     setMedicineName('');
     setComposition1('');
-    setComposition2('');
     setManufacturer('');
     setQuantity(1);
     setBatchNumber('');
@@ -477,7 +472,7 @@ export default function InventoryModalForm({
                     }
                   }}
                   data={suggestions.map((med) => ({
-                    value: `${med.name}||id:${med.id}`,
+                    value: `${med.name}||id:${med.sku_id}`,
                     label: med.name
                   }))}
                   rightSection={loading ? <Loader size="sm" /> : null}
@@ -594,16 +589,7 @@ export default function InventoryModalForm({
                 styles={getWarningFieldStyles(composition1.trim().length === 0)}
               />
 
-              <TextInput
-                label={renderLabelWithTooltip(
-                  'Secondary Formula / Ingredients',
-                  'Optionally include additional ingredients, combinations, or notes that support better identification and counseling.'
-                )}
-                placeholder="Optional additional ingredients"
-                value={composition2}
-                onChange={(e) => setComposition2(e.currentTarget.value)}
-                styles={getInputStyles(true)}
-              />
+              
             </SimpleGrid>
           </Box>
 

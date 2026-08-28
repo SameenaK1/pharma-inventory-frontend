@@ -1109,7 +1109,7 @@ export default function Invoices() {
                           error={submitAttempted && !item.medicineName.trim()}
                           value={item.medicineName}
                           data={(editMedicineSuggestions[item.id] || []).map((med) => ({
-                            value: `${med.name}__${med.id}`,
+                            value: `${med.name}__${med.sku_id}`,
                             label: med.name,
                           }))}
                           onChange={(value) => {
@@ -1126,7 +1126,7 @@ export default function Invoices() {
                           renderOption={({ option }) => {
                             const [name, medId] = option.value.split('__');
                             const med = (editMedicineSuggestions[item.id] || []).find(
-                              (m) => String(m.id) === String(medId)
+                              (m) => String(m.sku_id) === String(medId)
                             );
                             return (
                               <Stack gap={0}>
