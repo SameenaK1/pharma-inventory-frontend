@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
+  Textarea,
   SimpleGrid,
   Stack,
   Box,
@@ -32,11 +33,24 @@ import { addInventory, type InventoryItem } from '../services/inventory';
 import { getMedicineByName, type Medicine } from '../services/medicine';
 import { getManufacturerName, type Manufacturer } from '../services/manufacturer';
 
-// Manufacturer type for type safety
-// export type Manufacturer = {
-//   id: number;
-//   name: string;
-// };
+// Canonical medicine categories. MUST match the <Select data> options below.
+const MEDICINE_TYPES = ['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other'];
+
+/**
+ * Normalizes any incoming medicine type value to a canonical Select option.
+ * The medicine database stores types in lowercase (e.g. "allopathy"), while the
+ * Select options are Title Case ("Allopathy"). Without normalization the Select
+ * cannot match the value to an option and renders blank.
+ */
+const normalizeMedicineType = (value?: string | null): string => {
+  if (!value || !value.trim()) return MEDICINE_TYPES[0];
+  const trimmed = value.trim();
+  const match = MEDICINE_TYPES.find(
+    (option) => option.toLowerCase() === trimmed.toLowerCase()
+  );
+  // Keep unknown values as-is so no data is silently lost.
+  return match ?? trimmed;
+};
 
 interface InventoryModalFormProps {
   opened: boolean;
@@ -168,8 +182,7 @@ export default function InventoryModalForm({
     setSelectedMedicine(medicine);
     setComposition1(medicine.short_composition || '');
     setPackSize(medicine.pack_size_label || '');
-    if (medicine.type) setMedicineType(medicine.type);
-    setMedicineType(medicine.type || 'Allopathy'); // Default to 'Allopathy' if type is missing
+    setMedicineType(normalizeMedicineType(medicine.type));
     // Update both manufacturer states here
     setManufacturer(medicine.manufacturer_name || '');
     setConfirmedManufacturer(medicine.manufacturer_name || '');
@@ -202,7 +215,7 @@ export default function InventoryModalForm({
       if (initialData) {
         setMedicineName(initialData.name || '');
         setManufacturer(initialData.manufacturername || initialData.manufacturer_name || '');
-        setMedicineType(initialData.type || 'Allopathy');
+        setMedicineType(normalizeMedicineType(initialData.type));
         setPackSize(initialData.pack_size_label || '');
         setComposition1(initialData.composition1 || '');
         setMrp(initialData.mrp || 0);
@@ -279,7 +292,7 @@ export default function InventoryModalForm({
       const item: InventoryItem = {
         name: medicineName,
         manufacturername: manufacturer,
-        type: medicineType || 'Allopathy',
+        type: normalizeMedicineType(medicineType),
         packsizelabel: packsize?.toString() || '',
         composition1: composition1 || '',
         mrp: Number(mrp) || 0,
@@ -531,7 +544,7 @@ export default function InventoryModalForm({
               <Text fw={700} size="sm" c="#1e293b">2. Category & Manufacturer Info</Text>
             </Group>
 
-            <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
               <Box>
                 <Autocomplete
                   label={renderLabelWithTooltip(
@@ -571,14 +584,14 @@ export default function InventoryModalForm({
                   'Choose the product category for filtering and reporting. Example: Allopathy, Ayurvedic, Homeopathy, or Surgical.'
                 )}
                 required
-                data={['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other']}
+                data={MEDICINE_TYPES}
                 error={isSubmitted && !isTypeValid ? "Select category" : null}
                 value={medicineType}
                 onChange={(value) => setMedicineType(value || '')}
                 styles={getInputStyles(isTypeValid)}
               />
 
-              <TextInput
+              <Textarea
                 label={renderLabelWithTooltip(
                   'Main Formula / Active Composition',
                   'Add the main active ingredient and strength, such as Paracetamol 650 mg. This helps pharmacists identify substitutes safely.'
@@ -587,9 +600,11 @@ export default function InventoryModalForm({
                 value={composition1}
                 onChange={(e) => setComposition1(e.currentTarget.value)}
                 styles={getWarningFieldStyles(composition1.trim().length === 0)}
+                minRows={3}
+                autosize
               />
 
-              
+
             </SimpleGrid>
           </Box>
 
