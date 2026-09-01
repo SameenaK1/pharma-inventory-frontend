@@ -15,7 +15,7 @@ import {
   ThemeIcon,
   Divider,
   Loader,
-  Tooltip
+  Tooltip 
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -77,6 +77,7 @@ export default function InventoryModalForm({
   const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
+  const [imageurl, setImageUrl] = useState<string>('');
   const [medicineType, setMedicineType] = useState('');
   const [expiryDate, setExpiryDate] = useState<string>('');
 
@@ -177,19 +178,22 @@ export default function InventoryModalForm({
   const handleMedicineNameChange = (value: string) => {
     setMedicineName(value);
   };
-
+  
   const handleMedicineSelect = (medicine: Medicine) => {
     setSelectedMedicine(medicine);
     setComposition1(medicine.short_composition || '');
     setPackSize(medicine.pack_size_label || '');
+    setMrp(medicine.price || 0);
+   
+    setImageUrl(medicine.image_url || '');
+
     setMedicineType(normalizeMedicineType(medicine.type));
-    // Update both manufacturer states here
     setManufacturer(medicine.manufacturer_name || '');
     setConfirmedManufacturer(medicine.manufacturer_name || '');
 
     setLoading(false);
     setSuggestions([]);
-  }
+  };
 
   const handleManufacturerNameChange = (value: string) => {
     setManufacturer(value);
@@ -218,6 +222,7 @@ export default function InventoryModalForm({
         setMedicineType(normalizeMedicineType(initialData.type));
         setPackSize(initialData.pack_size_label || '');
         setComposition1(initialData.composition1 || '');
+        setImageUrl(initialData.image_url || '');
         setMrp(initialData.mrp || 0);
         setBatchNumber(initialData.batch_number || '');
         setshelfrackinfo(initialData.shelf_rack_info || '');
@@ -339,6 +344,7 @@ export default function InventoryModalForm({
     setshelfrackinfo('');
     setAlertThreshold(6);
     setPackSize('');
+    setImageUrl('');
     setPurchasePrice(0);
     setSellingPrice(0);
     setMrp(0);
@@ -691,29 +697,36 @@ export default function InventoryModalForm({
                 />
               </Stack>
 
-              <Stack gap="md">
-                <Box style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                  {renderLabelWithTooltip(
-                    'Medicine Package Image',
-                    'Attach a clear package photo to help visual verification during receiving and dispensing. This area is currently a placeholder.'
+              <Stack gap="xs">
+                {renderLabelWithTooltip(
+                  'Medicine Package Image',
+                  'Package photo to help visual verification during receiving and dispensing.'
+                )}
+                <Box
+                  style={{
+                    width: '100%',
+                    height: '230px', // Fixed height to provide ample viewing space
+                    backgroundColor: '#ffffff',
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}
+                >
+                  {imageurl && (
+                    <>
+                      <img
+                        src={imageurl}
+                        alt="Medicine Package"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover' // Fills the entire area without white borders around the image
+                        }}
+                      />
+                     
+                    </>
                   )}
-                  <Box
-                    style={{
-                      textAlign: 'center',
-                      flexGrow: 1,
-                      minHeight: '112px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px dashed #cbd5e1',
-                      borderRadius: '12px'
-                    }}
-                  >
-                    <Text size="xs" fw={600} c="#475569">Photo Attachment Area</Text>
-                    <Text size="10px" c="#94a3b8" mt={2}>Supported formats: PNG, JPG up to 2MB</Text>
-                  </Box>
                 </Box>
               </Stack>
             </SimpleGrid>

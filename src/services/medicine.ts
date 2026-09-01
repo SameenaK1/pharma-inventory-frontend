@@ -10,6 +10,7 @@ export interface Medicine {
   price: number;
   pack_size_label: string;
   short_composition: string;
+  image_url: string;
 }
 
 export interface MedicineApiResponse {
