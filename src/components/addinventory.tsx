@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
+  Textarea,
   SimpleGrid,
   Stack,
   Box,
@@ -14,7 +15,7 @@ import {
   ThemeIcon,
   Divider,
   Loader,
-  Tooltip
+  Tooltip 
 } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -32,11 +33,24 @@ import { addInventory, type InventoryItem } from '../services/inventory';
 import { getMedicineByName, type Medicine } from '../services/medicine';
 import { getManufacturerName, type Manufacturer } from '../services/manufacturer';
 
-// Manufacturer type for type safety
-// export type Manufacturer = {
-//   id: number;
-//   name: string;
-// };
+// Canonical medicine categories. MUST match the <Select data> options below.
+const MEDICINE_TYPES = ['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other'];
+
+/**
+ * Normalizes any incoming medicine type value to a canonical Select option.
+ * The medicine database stores types in lowercase (e.g. "allopathy"), while the
+ * Select options are Title Case ("Allopathy"). Without normalization the Select
+ * cannot match the value to an option and renders blank.
+ */
+const normalizeMedicineType = (value?: string | null): string => {
+  if (!value || !value.trim()) return MEDICINE_TYPES[0];
+  const trimmed = value.trim();
+  const match = MEDICINE_TYPES.find(
+    (option) => option.toLowerCase() === trimmed.toLowerCase()
+  );
+  // Keep unknown values as-is so no data is silently lost.
+  return match ?? trimmed;
+};
 
 interface InventoryModalFormProps {
   opened: boolean;
@@ -56,7 +70,6 @@ export default function InventoryModalForm({
   const [alertthreshold, setAlertThreshold] = useState<number | string>(6);
   const [medicineName, setMedicineName] = useState('');
   const [composition1, setComposition1] = useState('');
-  const [composition2, setComposition2] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [packsize, setPackSize] = useState<number | string>('');
   const [batchNumber, setBatchNumber] = useState('');
@@ -64,6 +77,7 @@ export default function InventoryModalForm({
   const [purchasePrice, setPurchasePrice] = useState<number | string>(0);
   const [sellingPrice, setSellingPrice] = useState<number | string>(0);
   const [mrp, setMrp] = useState<number | string>(0);
+  const [imageurl, setImageUrl] = useState<string>('');
   const [medicineType, setMedicineType] = useState('');
   const [expiryDate, setExpiryDate] = useState<string>('');
 
@@ -164,21 +178,22 @@ export default function InventoryModalForm({
   const handleMedicineNameChange = (value: string) => {
     setMedicineName(value);
   };
-
+  
   const handleMedicineSelect = (medicine: Medicine) => {
     setSelectedMedicine(medicine);
-    setComposition1(medicine.composition1 || '');
-    setComposition2(medicine.composition2 || '');
+    setComposition1(medicine.short_composition || '');
     setPackSize(medicine.pack_size_label || '');
-    if (medicine.type) setMedicineType(medicine.type);
-    setMedicineType(medicine.type || 'Allopathy'); // Default to 'Allopathy' if type is missing
-    // Update both manufacturer states here
+    setMrp(medicine.price || 0);
+   
+    setImageUrl(medicine.image_url || '');
+
+    setMedicineType(normalizeMedicineType(medicine.type));
     setManufacturer(medicine.manufacturer_name || '');
     setConfirmedManufacturer(medicine.manufacturer_name || '');
 
     setLoading(false);
     setSuggestions([]);
-  }
+  };
 
   const handleManufacturerNameChange = (value: string) => {
     setManufacturer(value);
@@ -204,10 +219,10 @@ export default function InventoryModalForm({
       if (initialData) {
         setMedicineName(initialData.name || '');
         setManufacturer(initialData.manufacturername || initialData.manufacturer_name || '');
-        setMedicineType(initialData.type || 'Allopathy');
+        setMedicineType(normalizeMedicineType(initialData.type));
         setPackSize(initialData.pack_size_label || '');
         setComposition1(initialData.composition1 || '');
-        setComposition2(initialData.composition2 || '');
+        setImageUrl(initialData.image_url || '');
         setMrp(initialData.mrp || 0);
         setBatchNumber(initialData.batch_number || '');
         setshelfrackinfo(initialData.shelf_rack_info || '');
@@ -282,10 +297,9 @@ export default function InventoryModalForm({
       const item: InventoryItem = {
         name: medicineName,
         manufacturername: manufacturer,
-        type: medicineType || 'Allopathy',
+        type: normalizeMedicineType(medicineType),
         packsizelabel: packsize?.toString() || '',
-        composition1,
-        composition2,
+        composition1: composition1 || '',
         mrp: Number(mrp) || 0,
         batchnumber: batchNumber,
         shelfrackinfo: shelfrackinfo,
@@ -324,13 +338,13 @@ export default function InventoryModalForm({
   const resetFormFields = () => {
     setMedicineName('');
     setComposition1('');
-    setComposition2('');
     setManufacturer('');
     setQuantity(1);
     setBatchNumber('');
     setshelfrackinfo('');
     setAlertThreshold(6);
     setPackSize('');
+    setImageUrl('');
     setPurchasePrice(0);
     setSellingPrice(0);
     setMrp(0);
@@ -477,7 +491,7 @@ export default function InventoryModalForm({
                     }
                   }}
                   data={suggestions.map((med) => ({
-                    value: `${med.name}||id:${med.id}`,
+                    value: `${med.name}||id:${med.sku_id}`,
                     label: med.name
                   }))}
                   rightSection={loading ? <Loader size="sm" /> : null}
@@ -536,7 +550,7 @@ export default function InventoryModalForm({
               <Text fw={700} size="sm" c="#1e293b">2. Category & Manufacturer Info</Text>
             </Group>
 
-            <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="lg">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
               <Box>
                 <Autocomplete
                   label={renderLabelWithTooltip(
@@ -576,14 +590,14 @@ export default function InventoryModalForm({
                   'Choose the product category for filtering and reporting. Example: Allopathy, Ayurvedic, Homeopathy, or Surgical.'
                 )}
                 required
-                data={['Allopathy', 'Ayurvedic', 'Homeopathy', 'Surgical', 'Other']}
+                data={MEDICINE_TYPES}
                 error={isSubmitted && !isTypeValid ? "Select category" : null}
                 value={medicineType}
                 onChange={(value) => setMedicineType(value || '')}
                 styles={getInputStyles(isTypeValid)}
               />
 
-              <TextInput
+              <Textarea
                 label={renderLabelWithTooltip(
                   'Main Formula / Active Composition',
                   'Add the main active ingredient and strength, such as Paracetamol 650 mg. This helps pharmacists identify substitutes safely.'
@@ -592,18 +606,11 @@ export default function InventoryModalForm({
                 value={composition1}
                 onChange={(e) => setComposition1(e.currentTarget.value)}
                 styles={getWarningFieldStyles(composition1.trim().length === 0)}
+                minRows={3}
+                autosize
               />
 
-              <TextInput
-                label={renderLabelWithTooltip(
-                  'Secondary Formula / Ingredients',
-                  'Optionally include additional ingredients, combinations, or notes that support better identification and counseling.'
-                )}
-                placeholder="Optional additional ingredients"
-                value={composition2}
-                onChange={(e) => setComposition2(e.currentTarget.value)}
-                styles={getInputStyles(true)}
-              />
+
             </SimpleGrid>
           </Box>
 
@@ -690,29 +697,36 @@ export default function InventoryModalForm({
                 />
               </Stack>
 
-              <Stack gap="md">
-                <Box style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                  {renderLabelWithTooltip(
-                    'Medicine Package Image',
-                    'Attach a clear package photo to help visual verification during receiving and dispensing. This area is currently a placeholder.'
+              <Stack gap="xs">
+                {renderLabelWithTooltip(
+                  'Medicine Package Image',
+                  'Package photo to help visual verification during receiving and dispensing.'
+                )}
+                <Box
+                  style={{
+                    width: '100%',
+                    height: '230px', // Fixed height to provide ample viewing space
+                    backgroundColor: '#ffffff',
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}
+                >
+                  {imageurl && (
+                    <>
+                      <img
+                        src={imageurl}
+                        alt="Medicine Package"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover' // Fills the entire area without white borders around the image
+                        }}
+                      />
+                     
+                    </>
                   )}
-                  <Box
-                    style={{
-                      textAlign: 'center',
-                      flexGrow: 1,
-                      minHeight: '112px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px dashed #cbd5e1',
-                      borderRadius: '12px'
-                    }}
-                  >
-                    <Text size="xs" fw={600} c="#475569">Photo Attachment Area</Text>
-                    <Text size="10px" c="#94a3b8" mt={2}>Supported formats: PNG, JPG up to 2MB</Text>
-                  </Box>
                 </Box>
               </Stack>
             </SimpleGrid>

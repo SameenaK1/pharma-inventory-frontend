@@ -2,13 +2,15 @@
 import { API_BASE_URL, getHeaders, toApiError, handleResponse } from './apiClient';
 
 export interface Medicine {
-  id: number;
+  sku_id: number;
   name: string;
   manufacturer_name: string;
+  marketer_name: string;
   type: string;
+  price: number;
   pack_size_label: string;
-  composition1: string;
-  composition2: string;
+  short_composition: string;
+  image_url: string;
 }
 
 export interface MedicineApiResponse {

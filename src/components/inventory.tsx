@@ -361,7 +361,6 @@ export default function Inventory() {
                                         <Table.Th>Manufacturer</Table.Th>
                                         <Table.Th>Batch Number</Table.Th>
                                         <Table.Th>Compound 1</Table.Th>
-                                        <Table.Th>Compound 2</Table.Th>
                                         <Table.Th ta="right">Quantity</Table.Th>
                                         <Table.Th>Expiry Date</Table.Th>
                                         <Table.Th>Status</Table.Th>
@@ -410,7 +409,6 @@ export default function Inventory() {
                                                 <Table.Td>{row.manufacturer_name}</Table.Td>
                                                 <Table.Td>{row.batch_number || '—'}</Table.Td>
                                                 <Table.Td>{row.composition1 || '—'}</Table.Td>
-                                                <Table.Td>{row.composition2 || '—'}</Table.Td>
                                                 <Table.Td ta="right">{row.stock_quantity}</Table.Td>
                                                 <Table.Td>
                                                     <Group gap={4} wrap="nowrap">

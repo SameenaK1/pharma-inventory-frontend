@@ -383,7 +383,7 @@ export default function Billing() {
         flatDiscount: flatDiscountAmount,
         finalPayable: totals.payable,
         items: totals.calculated.map((item) => ({
-          medicineId: medicineSuggestions[item.id]?.find((med) => med.name === item.medicineName)?.id || null,
+          medicineId: medicineSuggestions[item.id]?.find((med) => med.name === item.medicineName)?.sku_id || null,
           medicineName: item.medicineName.trim(),
           batch: item.batchNumber.trim(),
           expiryDate: `${item.expiryDate}-01`,
@@ -496,7 +496,7 @@ export default function Billing() {
                         value={item.medicineName}
                         error={submitAttempted && !item.medicineName.trim()}
                         data={(medicineSuggestions[item.id] || []).map((med) => ({
-                          value: `${med.name}__${med.id}`,
+                          value: `${med.name}__${med.sku_id}`,
                           label: med.name,
                         }))}
                         onChange={(value) => {
@@ -514,7 +514,7 @@ export default function Billing() {
                         renderOption={({ option }) => {
                           const [name, medId] = option.value.split('__');
                           const med = (medicineSuggestions[item.id] || []).find(
-                            (m) => String(m.id) === String(medId)
+                            (m) => String(m.sku_id) === String(medId)
                           );
 
                           return (
