@@ -27,6 +27,7 @@ import { debounce } from '../utils/debounce';
 import { getMedicineByName, type Medicine } from '../services/medicine';
 import { getBatchNumbersByMedicine, type BatchInfo } from '../services/inventory';
 import { createBillingInvoice } from '../services/billing';
+import { useNavigate } from 'react-router';
 
 type BillingItem = {
   id: number;
@@ -92,6 +93,7 @@ const getExpiryError = (value: string) => (value && value < new Date().toISOStri
 const disabledFieldStyles = { input: { color: 'var(--mantine-color-dark-9)', opacity: 1, fontWeight: 700, WebkitTextFillColor: 'var(--mantine-color-dark-9)' } };
 
 export default function Billing() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<BillingItem[]>(initialItems);
   const [flatDiscount, setFlatDiscount] = useState<number | string>(0);
   const [paymentType, setPaymentType] = useState<string | null>('Cash');
@@ -438,6 +440,7 @@ export default function Billing() {
         icon: <IconAlertCircle size={18} />,
       });
     } finally {
+      navigate('/Invoices')
       setSaveLoading(false);
     }
   };
